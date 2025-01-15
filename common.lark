@@ -1,0 +1,24 @@
+BASE_COLOR: "Red"
+    | "Yellow"
+    | "Green"
+    | "Blue"
+    | "Purple"
+
+ICON: /Castles?/
+    | /Factor(y|ies)/
+    | /Clocks?/
+    | /Crowns?/
+    | /Ideas?/
+    | /Lea(f|ves)/
+    | /Hex(es)?/
+
+NUM: /[1-9]\d*/
+    | "a"
+    | "an"
+    | "zero"
+    | "one"
+    | "two"
+    | "three"
+    | "four"
+
+CARD_NAME: /[a-zA-Z]+/

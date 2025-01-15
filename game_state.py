@@ -1,60 +1,13 @@
-from enum import Enum, auto
+from __future__ import annotations 
 from dataclasses import dataclass
-from typing import List, Set, Dict, Deque
+from typing import List, Set, Dict, Deque, Callable
 from collections import Counter, deque
+from structs import *
 import random
 
-from dogma_behavior import DogmaFunc
-from player_agents import PlayerAgent
+from dogma_behavior import DEffect
 
 
-class Color(Enum):
-    RED = auto()
-    YELLOW = auto()
-    GREEN = auto()
-    BLUE = auto()
-    PURPLE = auto()
-
-
-class Icon(Enum):
-    GOLD = auto()
-    PLANT = auto()
-    LIGHT = auto()
-    ROOK = auto()
-    FACTORY = auto()
-    CLOCK = auto()
-    HEX = auto()
-
-
-class Splay(Enum):
-    NONE = 0
-    LEFT = 1
-    RIGHT = 2
-    UP = 3
-"""
-Splaying reveals icons, indexed as follows:
- --------------------------------
-|                CARD TITLE      |
-|   1                            |
-|            (dogmas n stuff)    |
-|                                |
-|   2          3          4      |
-|                                |
- --------------------------------
- (The remaining two spots on the 2x3 grid are used in some expansions.)
-"""
-splay_indices = (
-    (),        # NONE
-    (4),       # LEFT
-    (1, 2),    # RIGHT
-    (2, 3, 4)  # UP
-)
-
-
-@dataclass
-class DEffect:
-    effect : DogmaFunc
-    is_demand : bool
 
 
 @dataclass
@@ -64,7 +17,6 @@ class Card:
     age : int
     icons : List[Icon]
     dogmata : List[DEffect]
-    key_icon : Icon
     # Cards are hidden by default
     faceup : bool = False
     # Player IDs are represented as ints.
@@ -76,12 +28,22 @@ class Card:
     def __eq__(self, other):
         if type(other) is not Card: return False
         return self.name == other.name
+    
+    def __str__(self):
+        return \
+f"""
+{self.name} ({self.age} {self.color.name})
+{' '.join(self.icons[i].name if i in range(len(self.icons)) else '' for i in (0,5,4))}
+{' '.join(self.icons[i].name for i in (1,2,3))}
+Effects:
+{chr(10).join(str(d) for d in self.dogmata)}
+"""  # older python versions don't support backslashes in f-strings
 
 
 @dataclass
 class SpecialAchievement:
     name : str
-    meets_cond : function
+    meets_cond : Callable[[GameState, int], bool]
     # special achievements don't need to know who owns them
 
 
