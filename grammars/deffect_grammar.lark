@@ -1,6 +1,18 @@
 %import .common (BASE_COLOR, ICON, NUM, CARD_NAME)
 
-?age: "[" value "]"
+%ignore /\s+/
+%ignore "#" /[^\n]/*
+%ignore ","
+
+cards: card+
+
+card: CARD_NAME "(" age BASE_COLOR ")" "{" icons dogma "}"
+
+?icons: ICON~1..6
+
+dogma: dogma_effect+
+
+age: "[" value "]"
 
 dogma_effect: effect_header stmts
 
@@ -56,52 +68,29 @@ COUNT_SUPERLATIVE: "strictly most" | "strictly fewest"
 
 card_sel_lambda: sel_num_cards | sel_all_cards | NUM
 
-sel_num_cards: "the" VAL_SUPERLATIVE value?
+sel_num_cards: "the" VAL_SUPERLATIVE? value?
 sel_all_cards: "all the" VAL_SUPERLATIVE? | "all" VAL_SUPERLATIVE?
 
 
 // TODO: "its feature"...
 ITS_COLOR: "its color"
 
-QUANTIFIER: "any of" | "all of"   // TODO: redundant?
+QUANTIFIER: "any of" | "all of"  // TODO: redundant?
 
 card_is_like: QUANTIFIER? specific_cards ("is"|"are") color_select 
     | QUANTIFIER? specific_cards ("has"|"have") "a" ICON
     | CARD_NAME "is" PREPOS zone
 
-zone_has: zone "has" "a"? color_select
-    | zone "has a" age
-    | zone "has a" ICON
-
-SOME_COLOR: "some-color"
-
 CHOSEN: "chosen"
 
 ?color_select: ITS_COLOR
     | BASE_COLOR
-    | SOME_COLOR
     | "(" color_select ")"
 
 ACTOR: "you" | "anyone" | "nobody"
 
 cards_transferred: ACTOR "transferred" ANY_AMT CARDS
 ANY_AMT: "no" | "any"
-
-has_icon: "has a" ICON
-
-any_card_cond: "any" kind_of_card PREPOS zone card_cond
-
-every_card_cond: "every" kind_of_card PREPOS zone card_cond
-
-// TODO: this is very inelegant and I'm not satisfied
-// we specifically use this for zone_has
-// and more specifically, for zone_has its-color
-card_cond: has_icon
-    | zone_has
-    | not_card_cond
-    | "(" card_cond ")"
-
-not_card_cond: "not" "(" card_cond ")"
 
 ONLY_YOU_HAVE_ALL_COLORS: "only-you-have-all-colors"
 
@@ -113,15 +102,11 @@ BELOW: "below"
 SCORE: "score"
 POINTS: "points"
 
-COUNTER: /(the )?counter/
-
 DEMOCRACY_RECORD: "the democracy record"
 
 COUNT: "#"
 
 ANY_NUMBER_OF: "any number of"
-
-ITS_VALUE: "its value"
 
 ROUND: "rounded up" | "rounded down"
 
@@ -130,7 +115,6 @@ ROUND: "rounded up" | "rounded down"
     | ANY_NUMBER_OF
     | DEMOCRACY_RECORD
     | player_adj SCORE
-    | COUNTER
     | CHOSEN
     | COUNT countable
     | value "plus" NUM
@@ -144,8 +128,6 @@ compare_op: AT_LEAST | BELOW
 comparison: player_adj? value "is" compare_op? value
 
 ANY_COLOR: "any one color"
-
-ANY_VALUE: "any one value"
 
 ANY_ONE: "any one"
 
@@ -171,12 +153,8 @@ value_is_superlative: value "is" COUNT_SUPERLATIVE
     | pile_is_splayed
     | feature_already_seen
     | card_is_like
-    | zone_has
     | comparison
     | value_is_superlative
-    | card_cond
-    | any_card_cond
-    | every_card_cond
     | not_cond
     | cond_or_cond
     | cond_and_cond
@@ -186,10 +164,6 @@ IT: "it"
 THEM: "them"
 
 CARDS: /cards?/
-
-cards_in_zone: kind_of_card PREPOS zone
-icons_in_zone: ICON PREPOS zone
-COLORS_ONLY_YOU_HAVE: "colors only you have"
 
 distinct_features: "distinct" FEATURE "s" PREPOS (THEM | zone)
 
@@ -206,7 +180,6 @@ countable: referent
     | kind_of_card PREPOS zone 
     | ICON PREPOS zone
     | ICON PREPOS specific_cards
-    | COLORS_ONLY_YOU_HAVE
     | distinct_features
     | "(" countable ")"
 
@@ -217,7 +190,8 @@ card_with_certain_icon: kind_of_card "with" "a" ICON
 card_without_certain_icon: kind_of_card "without" "a" ICON
 card_of_certain_feature: kind_of_card "of" a_certain_feature
 
-kind_of_card: card_of_certain_age
+kind_of_card: PILE_LOC kind_of_card
+    | card_of_certain_age
     | card_of_certain_color
     | card_not_of_certain_color
     | card_with_certain_icon
@@ -267,7 +241,6 @@ stmt: draw_stmt
     | tuck_stmt
     | exchange_stmt
     | splay_stmt
-    | inc_counter_stmt
     | special_achieve_stmt
     | democracy_stmt
     | rearrange_stmt
@@ -305,8 +278,6 @@ tuck_stmt: "tuck" specific_cards
 exchange_stmt: "exchange" specific_cards "with" specific_cards
 
 rearrange_stmt: "rearrange" player_color_cards
-
-inc_counter_stmt: "increment the counter"
 
 democracy_stmt: "set the democracy record"
 
