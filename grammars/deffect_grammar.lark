@@ -151,7 +151,6 @@ value_is_superlative: value "is" COUNT_SUPERLATIVE
 ?condition: cards_transferred 
     | ONLY_YOU_HAVE_ALL_COLORS
     | pile_is_splayed
-    | feature_already_seen
     | card_is_like
     | comparison
     | value_is_superlative
@@ -167,7 +166,6 @@ CARDS: /cards?/
 
 distinct_features: "distinct" FEATURE "s" PREPOS (THEM | zone)
 
-feature_already_seen: FEATURE "already seen"
 
 FEATURE: "value" | "color"
 

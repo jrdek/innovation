@@ -142,10 +142,9 @@ Masonry ([1] Yellow) {
 
     Shared (Castle) {
         you may {
-            choose any number of cards from your hand
-            meld them
+            meld any number of cards from your hand
         }
-        if # chosen is at least four {
+        if (# them) is at least four {
             claim the Monument special achievement
         }
     }
@@ -157,10 +156,11 @@ Pottery ([1] Blue) {
     Leaf Leaf Leaf
 
     Shared (Leaf) {
-        you may choose up to three cards from your hand
-        return them
-        draw a [# chosen]
-        score it
+        you may {
+            return up to three cards from your hand
+            draw a [# them]
+            score it
+        }
     }
 
     Shared (Leaf) {
@@ -380,11 +380,8 @@ Currency ([2] Green) {
 
     Shared (Crown) {
         you may {
-            return a card from your hand
-            if not (value already seen) {
-                draw a [2]
-                score it
-            }
+            return any number of cards from your hand
+            draw (# distinct values among them) [2]
         }
     }
 }
@@ -874,7 +871,7 @@ Physics ([5] Blue) {
     Shared (Idea) {
         draw three [6]
         reveal them
-        if # distinct colors among them is below three {
+        if (# distinct colors among them) is below three {
             return all the cards in your hand
         }
     }
@@ -1023,10 +1020,9 @@ Democracy ([6] Purple) {
 
     Shared (Idea) {
         you may {
-            choose any number of cards from your hand
-            return them
+            return any number of cards from your hand
         }
-        if the democracy record is below # chosen {
+        if the democracy record is below (# them) {
             set the democracy record
             draw an [8]
             score it
@@ -1120,7 +1116,7 @@ Lighting ([7] Purple) {
     Shared (Leaf) {
         you may tuck up to three cards from your hand
         draw (# distinct values among them) [7]
-        score them
+        score them  # that is, score all cards drawn
     }
 }
 

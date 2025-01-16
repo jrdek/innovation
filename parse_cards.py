@@ -21,7 +21,7 @@ def from_file(filename : str):  # todo typing
         cards_txt = f.read()
     parser = Lark.open("grammars/deffect_grammar.lark", start="cards")
     tree = parser.parse(cards_txt)
-    print(f'Unused rules: {find_unused_rules(tree, ("grammars/common", "grammars/deffect_grammar"), "cards")}')
+    print(f'Unused rules: {find_unused_rules(tree, ("grammars/common", "grammars/deffect_grammar"))}')
     input("(press any key...)")
     return tree
     #return CardBuilder().transform(tree)
