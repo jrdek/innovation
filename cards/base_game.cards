@@ -93,11 +93,9 @@ Oars ([1] Red) {
     Crown Hex Castle
 
     Demand (Castle) {
-        if any card in your hand has a Crown {
-            transfer a card with a Crown from your hand to my score pile
-            draw a [1]
-            repeat this effect
-        }
+        transfer a card with a Crown from your hand to my score pile
+        draw a [1]
+        repeat this effect
     }
 
     Shared (Castle) {
@@ -114,7 +112,7 @@ CodeOfLaws ([1] Purple) {
 
     Shared (Crown) {
         you may {
-            tuck a card s.t. (your board has its color) from your hand
+            tuck a card s.t. (any of the cards on your board are its color) from your hand
             you may {
                 splay your cards of its color left
             }
@@ -130,7 +128,7 @@ Mysticism ([1] Purple) {
     Shared (Castle) {
         draw a [1]
         reveal it
-        if your board has its color {
+        if any of the cards on your board are its color {
             meld it
             draw a [1]
         }
@@ -144,11 +142,10 @@ Masonry ([1] Yellow) {
 
     Shared (Castle) {
         you may {
-            meld a card with a Castle from your hand
-            increment the counter
-            repeat this effect
+            choose any number of cards from your hand
+            meld them
         }
-        if counter is at least four {
+        if # chosen is at least four {
             claim the Monument special achievement
         }
     }
@@ -160,14 +157,9 @@ Pottery ([1] Blue) {
     Leaf Leaf Leaf
 
     Shared (Leaf) {
-        if counter is below three {
-            you may {
-                return a card from your hand
-                increment the counter
-                repeat this effect
-            }
-        }
-        draw a [counter]
+        you may choose up to three cards from your hand
+        return them
+        draw a [# chosen]
         score it
     }
 
@@ -196,12 +188,30 @@ Clothing ([1] Green) {
     Crown Leaf Leaf
 
     Shared (Leaf) {
-        meld a card s.t. not (your board has its color) from your hand
+        meld a card s.t. not (any of the cards on your board are its color) from your hand
     }
 
     Shared (Leaf) {
-        draw (# colors only you have) [1]
-        score them
+        if (any of the cards on your board are Red) and not (any of the cards on anyone else's board are Red) {
+            draw a [1]
+            score it
+        }
+        if (any of the cards on your board are Yellow) and not (any of the cards on anyone else's board are Yellow) {
+            draw a [1]
+            score it
+        }
+        if (any of the cards on your board are Green) and not (any of the cards on anyone else's board are Green) {
+            draw a [1]
+            score it
+        }
+        if (any of the cards on your board are Blue) and not (any of the cards on anyone else's board are Blue) {
+            draw a [1]
+            score it
+        }
+        if (any of the cards on your board are Purple) and not (any of the cards on anyone else's board are Purple) {
+            draw a [1]
+            score it
+        }
     }
 }
 
@@ -212,7 +222,7 @@ CityStates ([1] Purple) {
 
     Demand (Crown) {
         if # Castles on your board is at least four {
-            transfer a card with a Castle from your top cards to my board
+            transfer a top card with a Castle from your board to my board
             draw a [1]
         }
     }
@@ -272,7 +282,7 @@ Monotheism ([2] Purple) {
     Castle Castle Castle
 
     Demand (Castle) {
-        transfer a card s.t. not (my board has its color) from your top cards to my score pile
+        transfer a top card s.t. not (any of the cards on my board are its color) from your board to my score pile
         draw a [1]
         tuck it
     }
@@ -306,19 +316,19 @@ Fermenting ([2] Yellow) {
     Leaf Hex Castle
 
     Shared (Leaf) {
-        if your Red pile has a Leaf {
+        if # Leaves in your Red pile is at least one {
             draw a [2]
         }
-        if your Yellow pile has a Leaf {
+        if # Leaves in your Yellow pile is at least one {
             draw a [2]
         }
-        if your Green pile has a Leaf {
+        if # Leaves in your Green pile is at least one {
             draw a [2]
         }
-        if your Blue pile has a Leaf {
+        if # Leaves in your Blue pile is at least one {
             draw a [2]
         }
-        if your Purple pile has a Leaf {
+        if # Leaves in your Purple pile is at least one {
             draw a [2]
         }
     }
@@ -386,8 +396,8 @@ Compass ([3] Green) {
     Crown Crown Leaf
 
     Demand (Crown) {
-        transfer a non-Green card with a Leaf from your top cards to my board
-        transfer a card without a Leaf from my top cards to your board
+        transfer a top non-Green card with a Leaf from your board to my board
+        transfer a top card without a Leaf from my board to your board
     }
 }
 
@@ -407,7 +417,7 @@ Engineering ([3] Red) {
     Hex Idea Castle
 
     Demand (Castle) {
-        transfer all cards with a Castle from your top cards to my score pile
+        transfer all top cards with a Castle from your board to my score pile
     }
 
     Shared (Castle) {
@@ -427,7 +437,7 @@ Translation ([3] Blue) {
     }
 
     Shared (Crown) {
-        if every card in your top cards has a Crown {
+        if all the top cards on your board have a Crown {
             claim the World special achievement
         }
     }
@@ -568,7 +578,7 @@ Enterprise ([4] Purple) {
     Crown Crown Crown
 
     Demand (Crown) {
-        transfer a non-Purple card with a Crown from your top cards to my board
+        transfer a top non-Purple card with a Crown from your board to my board
         draw a [4]
         meld it
     }
@@ -643,7 +653,7 @@ Gunpowder ([4] Red) {
     Factory Crown Factory
 
     Demand (Factory) {
-        transfer a card with a Castle from your top cards to my score pile
+        transfer a top card with a Castle from your board to my score pile
     }
 
     Shared (Factory) {
@@ -661,7 +671,7 @@ Anatomy ([4] Yellow) {
 
     Demand (Leaf) {
         return a card from your score pile
-        return a card of its value from your top cards
+        return a top card of its value from your board
     }
 }
 
@@ -752,7 +762,7 @@ Banking ([5] Green) {
     Crown Hex Crown
 
     Demand (Crown) {
-        transfer a non-Green card with a Factory from your top cards to my board
+        transfer a top non-Green card with a Factory from your board to my board
         draw a [5]
         score it
     }
@@ -774,7 +784,7 @@ ThePirateCode ([5] Red) {
 
     Shared (Crown) {
         if anyone transferred any cards {
-            score the lowest card with a Crown from your top cards
+            score the lowest top card with a Crown from your board
         }
     }
 }
@@ -789,7 +799,7 @@ Chemistry ([5] Blue) {
     }
 
     Shared (Factory) {
-        draw a [value of the highest card in your top cards]
+        draw a [value of the highest top card on your board]
         score it
         return a card from your score pile
     }
@@ -850,7 +860,7 @@ Coal ([5] Red) {
 
     Shared (Factory) {
         you may {
-            score a card from your top cards
+            score a top card from your board
             score your top card of its color
         }
     }
@@ -919,7 +929,7 @@ Canning ([6] Yellow) {
         you may {
             draw a [6]
             tuck it
-            score all the cards without a Factory from your top cards
+            score all the top cards without a Factory on your board
         }
     }
 
@@ -1013,11 +1023,10 @@ Democracy ([6] Purple) {
 
     Shared (Idea) {
         you may {
-            return a card from your hand
-            increment the counter
-            repeat this effect
+            choose any number of cards from your hand
+            return them
         }
-        if the democracy record is below the counter {
+        if the democracy record is below # chosen {
             set the democracy record
             draw an [8]
             score it
@@ -1132,7 +1141,7 @@ Electricity ([7] Green) {
     Factory Hex Factory
 
     Shared (Factory) {
-        return all cards without a Factory from your top cards
+        return all top cards without a Factory from your board
         draw (# them) [8]
     }
 }
@@ -1233,7 +1242,7 @@ Corporations ([8] Green) {
     Factory Factory Crown
 
     Demand (Factory) {
-        transfer a non-Green card with a Factory from your top cards to my score pile
+        transfer a top non-Green card with a Factory from your board to my score pile
         draw an [8]
         meld it
     }
@@ -1250,7 +1259,7 @@ Skyscrapers ([8] Yellow) {
     Factory Crown Crown
 
     Demand (Crown) {
-        transfer a non-Yellow card with a Clock from your top cards to my board
+        transfer a top non-Yellow card with a Clock from your board to my board
         score your top card of its color
         return all the cards of its color from your board
     }
@@ -1262,7 +1271,7 @@ Mobility ([8] Red) {
     Factory Clock Factory
 
     Demand (Factory) {
-        transfer the highest two non-Red cards without a Factory from your top cards to my score pile
+        transfer the highest two top non-Red cards without a Factory from your board to my score pile
         if you transferred any cards, draw an [8]
     }
 }
@@ -1366,7 +1375,7 @@ Services ([9] Purple) {
 
     Demand (Leaf) {
         transfer all the highest cards from your score pile to my hand
-        if you transferred any cards, transfer a card without a Leaf from my top cards to your hand
+        if you transferred any cards, transfer a top card without a Leaf from my board to your hand
     }
 }
 
@@ -1377,7 +1386,7 @@ Specialization ([9] Purple) {
 
     Shared (Factory) {
         reveal a card from your hand
-        transfer a card of its color from everyone else's top cards to your hand
+        transfer a top card of its color from everyone else's boards to your hand
     }
 
     Shared (Factory) {
@@ -1519,7 +1528,7 @@ SelfService ([10] Green) {
     Crown Crown Crown
 
     Shared (Crown) {
-        choose a card other than SelfService from your top cards
+        choose a top card other than SelfService from your board
         dogma combo
     }
 
@@ -1566,7 +1575,7 @@ Globalization ([10] Yellow) {
     Factory Factory Factory
 
     Demand (Factory) {
-        return a card with a Leaf from your top cards
+        return a top card with a Leaf from your board
     }
 
     Shared (Factory) {
@@ -1597,7 +1606,7 @@ Bioengineering ([10] Blue) {
     Clock Clock Hex
     
     Shared (Clock) {
-        transfer a card with a Leaf from anyone else's top cards to your score pile
+        transfer a top card with a Leaf from anyone else's board to your score pile
     }
 
     Shared (Clock) {
