@@ -1,24 +1,31 @@
-base_color: "Red"
-    | "Yellow"
-    | "Green"
-    | "Blue"
-    | "Purple"
+// TODO: Consider case sensitivity.
+// I would like "castles" to be different from "Castles",
+// but I don't care about case for colors...
 
-icon: /Castles?/
-    | /Factor(y|ies)/
-    | /Clocks?/
-    | /Crowns?/
-    | /Ideas?/
-    | /Lea(f|ves)/
-    | /Hex(es)?/
+red: "Red"
+yellow: "Yellow"
+green: "Green"
+blue: "Blue"
+purple: "Purple"
+base_color: red | yellow | green | blue | purple
 
-num: /[1-9]\d*/
-    | "a"
-    | "an"
-    | "zero"
-    | "one"
-    | "two"
-    | "three"
-    | "four"
 
-CARD_NAME: /[a-zA-Z]+/
+castle: "Castle" | "Castles"
+factory: "Factory" | "Factories"
+clock: "Clock" | "Clocks"
+crown: "Crown" | "Crowns"
+leaf: "Leaf" | "Leaves"
+idea: "Idea" | "Ideas"
+hex: "Hex" | "Hexes"
+icon: castle | factory | clock | crown | leaf | idea | hex
+
+zero: "zero"
+one: "a" | "an" | "one"
+two: "two"
+three: "three"
+four: "four"
+digits: /[1-9]\d*/  // no leading 0s
+num: zero | one | two | three | four | digits
+
+// this probably doesn't need a wrapper
+card_name: /[a-zA-Z]+/

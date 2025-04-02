@@ -1,4 +1,4 @@
-%import .common (base_color, icon, num, CARD_NAME)
+%import .common (base_color, icon, num, card_name)
 
 %ignore /\s+/
 %ignore "#" /[^\n]/*
@@ -6,7 +6,7 @@
 
 cards: card+
 
-card: CARD_NAME "(" age base_color ")" "{" icons dogma "}"
+card: card_name "(" age base_color ")" "{" icons dogma "}"
 
 ?icons: icon~1..6
 
@@ -16,141 +16,162 @@ age: "[" value "]"
 
 dogma_effect: effect_header stmts
 
-effect_header: EFFECT_CLASS "(" icon ")"
+effect_header: effect_class "(" icon ")"
 
-EFFECT_CLASS: "Shared" | "Demand"
+effect_class: "Shared" | "Demand"
 
 // ARGS TO STATEMENTS
 
-DIRECTION: "left" | "right" | "up"
-HAND: "hand" "s"?
-SCORE_PILE: "score pile" "s"?
-ACHIEVEMENTS: "achievements"
-BOARD: "board" "s"?
-TOP_CARDS: "top cards"
+dir_left: "left"
+dir_right: "right"
+dir_up: "up"
+direction: dir_left | dir_right | dir_up
 
-general_zone: HAND
-    | SCORE_PILE
-    | ACHIEVEMENTS
-    | BOARD
-    | TOP_CARDS
+hand: "hand" "s"?
+score_pile: "score pile" "s"?
+achievements: "achievements"
+board: "board" "s"?
+top_cards: "top cards"
 
-MY: "my"
-YOUR: "your"
-THEIR: "their"
-EVERYONES: "everyone's"
-EVERYONE_ELSES: "everyone else's"
-ANYONES: "anyone's"
-ANYONE_ELSES: "anyone else's"
+general_zone: hand
+    | score_pile
+    | achievements
+    | board
+    | top_cards
 
-YOU: "you"
-SOMEONE: "some player"
+my: "my"
+your: "your"
+their: "their"
+everyones: "everyone's"
+everyone_elses: "everyone else's"
+anyones: "anyone's"
+anyone_elses: "anyone else's"
 
-player: YOU
-    | "the player with" COUNT_SUPERLATIVE countable
+you: "you"
+anyone: "anyone"
+nobody: "nobody" | "no-one"
+someone: "some player"
 
-specific_players: SOMEONE ("s.t. (" condition ")")? "'s"
+player: you
+    | "the player with" count_superlative countable
 
-player_adj: MY
-    | YOUR
-    | THEIR
+specific_players: someone ("s.t. (" condition ")")? "'s"
+
+player_adj: my
+    | your
+    | their
     | specific_players
-    | EVERYONES
-    | ANYONES
-    | EVERYONE_ELSES
-    | ANYONE_ELSES
+    | everyones
+    | anyones
+    | everyone_elses
+    | anyone_elses
 
 zone: player_adj general_zone 
 
-VAL_SUPERLATIVE: "highest" | "lowest"
-COUNT_SUPERLATIVE: "strictly most" | "strictly fewest"
+strictly_most: "strictly most"
+strictly_fewest: "strictly fewest"
+highest: "highest"
+lowest: "lowest"
+
+val_superlative: highest | lowest
+count_superlative: strictly_most | strictly_fewest
 
 // how many of which cards?
 card_sel_lambda: sel_num_cards | sel_all_cards | num
 
-sel_num_cards: "the" VAL_SUPERLATIVE? value?  // TODO: This is too permissive! "draw the card from your hand..."
-sel_all_cards: "all the" VAL_SUPERLATIVE? | "all" VAL_SUPERLATIVE?
+sel_num_cards: "the" val_superlative? value?  // TODO: This is too permissive! "draw the card from your hand..."
+sel_all_cards: "all the" val_superlative? | "all" val_superlative?
 
+its_feature: "its" feature
+its_color: "its color"
 
-// TODO: "its feature"...
-ITS_COLOR: "its color"
-
-QUANTIFIER: "any of" | "all of"  // TODO: redundant?
+any_quant: "any of"
+all_quant: "all of"
+quantifier: any_quant | all_quant  // TODO: redundant?
 
 // NOTE that this will be a bit confusing to transform later!
-card_is_like: QUANTIFIER? specific_cards ("is"|"are") color_select 
-    | QUANTIFIER? specific_cards ("has"|"have") "a" icon
-    | CARD_NAME "is" _PREPOS zone
+// this is basically a bool: is property P of card c equal to x?
+// we don't use `feature` because "the card has a Red" may be different
+// from "the card is Red", and "the card is Castle" is something else altogether
+card_is_like: quantifier? specific_cards ("is"|"are") color_select 
+    | quantifier? specific_cards ("has"|"have") "a" icon
+    | card_name "is" _PREPOS zone
 
-CHOSEN: "chosen"
+chosen: "chosen"
 
-?color_select: ITS_COLOR
+?color_select: its_color
     | base_color
     | "(" color_select ")"
 
-ACTOR: "you" | "anyone" | "nobody"
+actor: you | anyone | nobody
 
-cards_transferred: ACTOR "transferred" ANY_AMT CARDS
-ANY_AMT: "no" | "any"
+cards_transferred: actor "transferred" any_amt _CARDS
 
-ONLY_YOU_HAVE_ALL_COLORS: "only-you-have-all-colors"
+no: "no"
+any: "any"
+any_amt: no | any
+
+// TODO: can this be more modular?
+only_you_have_all_colors: "only you have all colors"
 
 not_cond: "not" "(" condition ")"
 
-AT_LEAST: "at least"
-BELOW: "below"
+at_least: "at least"
+below: "below"
 
-SCORE: "score"
-POINTS: "points"
+score: "score"
+points: "points"
 
-DEMOCRACY_RECORD: "the democracy record"
+democracy_record: "the democracy record"
 
-COUNT: "#"
+any_number_of: "any number of"
 
-ANY_NUMBER_OF: "any number of"
+round_up: "rounded up"
+round_down: "rounded_down"
+round: round_up | round_down
 
-ROUND: "rounded up" | "rounded down"
+count: "#" countable
 
 ?value: num
     | feature_of_card
-    | ANY_NUMBER_OF
-    | DEMOCRACY_RECORD
-    | player_adj SCORE
-    | CHOSEN
-    | COUNT countable
+    | any_number_of
+    | democracy_record
+    | player_adj score
+    | chosen
+    | count
     | value /plus/ num
     | value /times/ num
-    | value /divided by/ num ROUND?
-    | VAL_SUPERLATIVE "value" _PREPOS zone
+    | value /divided by/ num round?
+    | val_superlative "value" _PREPOS zone
     | "(" value ")"  // sometimes it's nice to have parens for readability
 
-compare_op: AT_LEAST | BELOW
+compare_op: at_least | below
 
 comparison: player_adj? value "is" compare_op? value
 
-ANY_COLOR: "any one color"
+any_color: "any one color"  // TODO: what if I want to say "any two colors"?
 
-ANY_ONE: "any one"
+any_one: "any one"
 
-player_color_cards: player_adj color_select CARDS
-    | player_adj CARDS "of" feature_of_card
-    | ANY_COLOR "of" player_adj CARDS ("which is splayed" DIRECTION)?
+player_color_cards: player_adj color_select _CARDS
+    | player_adj _CARDS "of" feature_of_card
+    | any_color "of" player_adj _CARDS ("which is splayed" direction)?
     | "(" player_color_cards ")"
 
-pile_is_splayed: player_color_cards "are splayed" DIRECTION?
+pile_is_splayed: player_color_cards "are splayed" direction?
 
 cond_or_cond: condition "or" condition
 
 cond_and_cond: condition "and" condition
 
-SAME: "the same" | "its"
+same: "the same" | "its"
 
-a_certain_feature: SAME FEATURE | ANY_ONE FEATURE
+a_certain_feature: same feature | any_one feature
 
-value_is_superlative: value "is" COUNT_SUPERLATIVE
+value_is_superlative: value "is" count_superlative
 
 condition: cards_transferred 
-    | ONLY_YOU_HAVE_ALL_COLORS
+    | only_you_have_all_colors
     | pile_is_splayed
     | card_is_like
     | comparison
@@ -160,49 +181,51 @@ condition: cards_transferred
     | cond_and_cond
     | "(" condition ")"
 
-IT: "it" 
-THEM: "them"
+it: "it" 
+them: "them"
 
-CARDS: /cards?/
+_CARDS: /cards?/
 
-distinct_features: "distinct" FEATURE "s" _PREPOS (THEM | zone)
+distinct_features: "distinct" feature "s" _PREPOS (them | zone)
 
 
-FEATURE: "value" | "color"
+// NOTE: base game doesn't use age here
+feature: "value" | "color" | "age"
 
-feature_of_card: "its" FEATURE 
-    | "the"? FEATURE "of" specific_cards
-    | specific_cards "'s" FEATURE
+
+feature_of_card: its_feature
+    | "the"? feature "of" specific_cards
+    | specific_cards "'s" feature
 
 countable: referent
-    | POINTS
+    | points
     | kind_of_card _PREPOS zone 
     | icon _PREPOS zone
     | icon _PREPOS specific_cards
     | distinct_features
     | "(" countable ")"
 
-card_of_certain_age: age 
-card_of_certain_color: base_color kind_of_card
+card_of_certain_age: age  // you can say "draw a [10]"
+card_of_certain_color: base_color kind_of_card  // but you can't say "remove a red", it has to be a "red card"
 card_not_of_certain_color: "non-" base_color kind_of_card
 card_with_certain_icon: kind_of_card "with" "a" icon
 card_without_certain_icon: kind_of_card "without" "a" icon
 card_of_certain_feature: kind_of_card "of" a_certain_feature
 
-kind_of_card: PILE_LOC kind_of_card
+kind_of_card: pile_loc kind_of_card
     | card_of_certain_age
+    | _CARDS
     | card_of_certain_color
     | card_not_of_certain_color
     | card_with_certain_icon
     | card_without_certain_icon
     | card_of_certain_feature
-    | CARDS
 
-THE_OTHER_ONE: "the other one"
+the_other_one: "the other one"
 
-referent: IT | THEM | CHOSEN | THE_OTHER_ONE
+referent: it | them | chosen | the_other_one
 
-PILE_LOC: "top" | "bottom"
+pile_loc: "top" | "bottom"
 
 _PREPOS: "from" | "in" | "on" | "among"
 
@@ -210,16 +233,18 @@ range: value | up_to_value
 
 up_to_value: "up to" value
 
-MY_CHOICE: "my choice"
+my_choice: "my choice"
+
+other_than: "other than"
 
 ?specific_cards: referent
-    | MY_CHOICE
-    | card_sel_lambda kind_of_card ("other than" CARD_NAME)? ("s.t." condition)? _PREPOS zone
+    | my_choice
+    | card_sel_lambda kind_of_card (other_than card_name)? ("s.t." condition)? _PREPOS zone
     | card_sel_lambda kind_of_card "of" a_certain_feature _PREPOS zone
     | range kind_of_card _PREPOS zone
-    | player_adj PILE_LOC base_color CARDS
-    | player_adj PILE_LOC CARDS "of" a_certain_feature  // this is too permissive FIXME
-    | card_sel_lambda PILE_LOC kind_of_card
+    | player_adj pile_loc base_color _CARDS
+    | player_adj pile_loc _CARDS "of" a_certain_feature  // this is too permissive FIXME
+    | card_sel_lambda pile_loc kind_of_card
 
 
 stmts: _stmt
@@ -260,7 +285,7 @@ transfer_stmt: "transfer" specific_cards "to" zone
 
 meld_stmt: "meld" specific_cards
 
-splay_stmt: "splay" player_color_cards DIRECTION
+splay_stmt: "splay" player_color_cards direction
     | "unsplay" player_color_cards
 
 score_stmt: "score" specific_cards
@@ -284,11 +309,11 @@ rearrange_stmt: "rearrange" player_color_cards
 
 democracy_stmt: "set the democracy record"
 
-special_achieve_stmt: "claim the" CARD_NAME "special achievement"
+special_achieve_stmt: "claim the" card_name "special achievement"
 
 win_stmt: player "win" "s"?
 
-choose_features_stmt: "choose" value FEATURE "s"?
+choose_features_stmt: "choose" value feature "s"?
 
 choose_card_stmt: "choose" specific_cards
 

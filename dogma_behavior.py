@@ -47,7 +47,7 @@ def parse_dogma(dogma_tree : ParseTree) -> Dogma:
         header = de.children[0]
         stmts = de.children[1].children
         dclass = header.children[0]
-        icon = Icon[header.children[1].children[0].upper()]
+        icon = header.children[1].children[0]
         is_demand = (dclass == "Demand")
         new_effect = DEffect(icon, stmts, is_demand)
         dogma.append(new_effect)

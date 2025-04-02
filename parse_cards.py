@@ -10,7 +10,6 @@ from lark import Lark, Transformer, ParseTree
 from game_state import Color, Icon
 from game_state import Card
 from dogma_behavior import DogmaAction, DEffect, parse_dogma
-from normalize_syntax import NormalizeSyntax
 
 # TODO: compartmentalize the dead-code checking
 from utils.lark_utils import find_unused_rules
@@ -22,12 +21,11 @@ def get_cards_tree_from_path(path : str) -> ParseTree:
         cards_txt = f.read()
     parser = Lark.open("grammars/deffect_grammar.lark", start="cards")
     tree = parser.parse(cards_txt)
-    print(f'Unused rules: {find_unused_rules(tree, ("grammars/common", "grammars/deffect_grammar"))}')
-    input("(press any key...)")
+    # TODO: enable this via flag
+    #print(f'Unused rules: {find_unused_rules(tree, ("grammars/common", "grammars/deffect_grammar"))}')
+    #input("(press any key...)")
 
-    # # normalize the tree
-    # normalizer = NormalizeSyntax()
-    # normalizer.visit(tree)
+
     print(tree.pretty())
     input("(press any key...)")
     return tree
@@ -50,7 +48,7 @@ def get_cards_from_path(path : str) -> List[Card]:
         card_name, card_age_raw, card_color_raw, card_icons_raw, card_dogma_raw = tree.children
         card_age : int = int(card_age_raw.children[0].children[0])
         card_color = Color.RED  # this parsing doesn't currently work! FIXME
-        card_icons = [Icon[icon.children[0].upper()] for icon in card_icons_raw.children]
+        card_icons = card_icons_raw.children
         card_dogma : List[DogmaAction] = parse_dogma(card_dogma_raw)
         new_card : Card = Card(card_name, card_color, card_age, card_icons, card_dogma, faceup=False, owner=None)
         built_cards.append(new_card)

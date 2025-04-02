@@ -257,7 +257,7 @@ Construction ([2] Red) {
 
     # (offloading the work to the interpreter, since this is a one-off case)
     Shared (Castle) {
-        if only-you-have-all-colors {
+        if only you have all colors {
             claim the Empire special achievement
         }
     }
@@ -436,7 +436,7 @@ Feudalism ([3] Purple) {
 
     Demand (Castle) {
         transfer a card with a Castle from your hand to my hand
-        unsplay your (its color) cards
+        unsplay your cards of its color
     }
 
     Shared (Castle) {
@@ -1379,7 +1379,7 @@ Fission ([9] Red) {
     }
 
     Shared (Clock) {
-        return a card other than Fission from anyone's board
+        return a top card other than Fission from anyone's board
         draw a [10]
     }
 }

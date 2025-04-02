@@ -17,9 +17,6 @@ A: They're only ever used there. Didn't feel the need.
 Q: What's the deal with `value` and `card_sel_lambda` both having VAL_SUPERLATIVE?
 A: `value` is a numeric type. `card_sel_lambda` is of type Board -> Card.
 
-Q: Why are base_color, num, and icon not terminals?
-A: So they don't get optimized out of the tree, again for ease of typing.
-
 ---
 
 Q: Why are DogmaEffects interpreted?
@@ -35,3 +32,7 @@ Possible solutions:
         - this will be less annoying to implement, I think
     - replace all mutable fields of Card with immutable ones (FrozenList, etc)
         - this will be annoying to implement
+
+---
+Vital observation: terminals with multiple constructors should have a parent non-terminal!
+This way we can transform them easily.
