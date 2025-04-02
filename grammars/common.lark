@@ -1,10 +1,10 @@
-BASE_COLOR: "Red"
+base_color: "Red"
     | "Yellow"
     | "Green"
     | "Blue"
     | "Purple"
 
-ICON: /Castles?/
+icon: /Castles?/
     | /Factor(y|ies)/
     | /Clocks?/
     | /Crowns?/
@@ -12,7 +12,7 @@ ICON: /Castles?/
     | /Lea(f|ves)/
     | /Hex(es)?/
 
-NUM: /[1-9]\d*/
+num: /[1-9]\d*/
     | "a"
     | "an"
     | "zero"

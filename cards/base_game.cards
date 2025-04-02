@@ -255,6 +255,7 @@ Construction ([2] Red) {
         draw a [2]
     }
 
+    # (offloading the work to the interpreter, since this is a one-off case)
     Shared (Castle) {
         if only-you-have-all-colors {
             claim the Empire special achievement
@@ -316,19 +317,7 @@ Fermenting ([2] Yellow) {
     Leaf Hex Castle
 
     Shared (Leaf) {
-        if # Leaves in your Red pile is at least one {
-            draw a [2]
-        }
-        if # Leaves in your Yellow pile is at least one {
-            draw a [2]
-        }
-        if # Leaves in your Green pile is at least one {
-            draw a [2]
-        }
-        if # Leaves in your Blue pile is at least one {
-            draw a [2]
-        }
-        if # Leaves in your Purple pile is at least one {
+        for each color on your board with a Leaf {
             draw a [2]
         }
     }
@@ -952,23 +941,7 @@ Industrialization ([6] Red) {
     Factory Factory Hex
 
     Shared (Factory) {
-        if # Factories in your Red pile is at least 1 {
-            draw a [6]
-            tuck it
-        }
-        if # Factories in your Yellow pile is at least 1 {
-            draw a [6]
-            tuck it
-        }
-        if # Factories in your Green pile is at least 1 {
-            draw a [6]
-            tuck it
-        }
-        if # Factories in your Blue pile is at least 1 {
-            draw a [6]
-            tuck it
-        }
-        if # Factories in your Purple pile is at least 1 {
+        for each color on your board with a Factory {
             draw a [6]
             tuck it
         }

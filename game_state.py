@@ -1,13 +1,12 @@
 from __future__ import annotations 
 from dataclasses import dataclass
-from typing import List, Set, Dict, Deque, Callable
+from typing import List, Set, Dict, Deque, Callable, Optional
 from collections import Counter, deque
+from debug_handler import DFlags, DebugHandler
 from structs import *
 import random
 
 from dogma_behavior import DEffect
-
-
 
 
 @dataclass
@@ -18,10 +17,10 @@ class Card:
     icons : List[Icon]
     dogmata : List[DEffect]
     # Cards are hidden by default
-    faceup : bool = False
+    faceup : bool
     # Player IDs are represented as ints.
     # players[0] is None; all others are actual players
-    owner : int = 0
+    owner : int
 
     # card names are unique -- if two cards have the 
     # same name, then they are equal
@@ -29,15 +28,8 @@ class Card:
         if type(other) is not Card: return False
         return self.name == other.name
     
-    def __str__(self):
-        return \
-f"""
-{self.name} ({self.age} {self.color.name})
-{' '.join(self.icons[i].name if i in range(len(self.icons)) else '' for i in (0,5,4))}
-{' '.join(self.icons[i].name for i in (1,2,3))}
-Effects:
-{chr(10).join(str(d) for d in self.dogmata)}
-"""  # older python versions don't support backslashes in f-strings
+    def __str__(self) -> str:
+        return f"<{self.name}>"
 
 
 @dataclass
@@ -47,27 +39,52 @@ class SpecialAchievement:
     # special achievements don't need to know who owns them
 
 
+# NOTE: Initially, Pile inherited from deque.
+# It ended up being a bit easier to just have the container of cards be a field
+# which is accessed transparently via __getitem__ and __contains__.
+# TODO: Think more about this choice.
 @dataclass
-class Pile(deque):  # TODO is this how inheritance works
-    splay : Splay = Splay.NONE
+class Pile:
+    cards : Deque[Card]
+    splay : Splay
+
+    def __getitem__(self, idx) -> Card:
+        return self.cards[idx]
     
+    def __contains__(self, item) -> bool:
+        return item in self.cards
+
+    def __len__(self) -> int:
+        return len(self.cards)
+
     def count_icon(self, targ_icon : Icon) -> int:
         total : int = 0
         for card in self[1:]:
             total += len([card.icons[i] for i in splay_indices[self.splay] if card.icons[i] is targ_icon])    
 
 
+def get_empty_PlayerState() -> PlayerState:
+    return PlayerState(
+        hand=[],
+        scored_cards=[],
+        achieved_cards=[],
+        special_achievements=[],
+        board=get_empty_board()
+    )
+
+
+def get_empty_board() -> Dict[Color, Pile]:
+    return {color: Pile(deque(), Splay.NONE) for color in Color}
+
+
 # A PlayerState is a full-detail snapshot of a player's hand/board/etc.
 @dataclass
 class PlayerState:
-    hand : Set[Card]
-    scored_cards : Set[Card]
-    achieved_cards : Set[Card]
-    special_achievements : Set[SpecialAchievement]
+    hand : List[Card]
+    scored_cards : List[Card]
+    achieved_cards : List[Card]
+    special_achievements : List[SpecialAchievement]
     board : Dict[Color, Pile]
-
-    def __post_init__(self):
-        self.board = {color: Pile() for color in Color}
 
     def count_achievements(self) -> int:
         return len(self.achieved_cards)
@@ -85,26 +102,29 @@ class PlayerState:
 @dataclass
 class GameState:
     players : List[PlayerState]
-    decks : List[Deque[Card]]
+    decks : List[Deque[Card]]  # NOTE that this does not extend to expansion draw rules!
     achievements : List[Card]
     special_achievements : List[SpecialAchievement]
+    winner : Optional[int]
+    debug : DebugHandler
+    
 
-    def __post_init__(self):
-        # 1. populate special achievements (TODO)
-        # 2. populate self.decks (TODO)
-        # 3. shuffle the decks and populate the achievements pile
+    # WARNING: this function breaks immutability of the class!
+    # May be worth changing/reorganizing later. TODO.
+    def setup_shuffle(self):
         random.shuffle(self.decks[-1])
-        for d in self.decks[-2:0:-1]:
-            random.shuffle(self.decks[d])
-            self.achievements.append(self.decks[d].pop())
-        # now await the agents' choices
-        
+        for deck in self.decks:
+            random.shuffle(deck)
+            #self.achievements.append(deck.pop())  # TODO: put elsewhere?
 
 
-
-
-
-
+# util function to sort a list of cards into appropriate decks.
+# TODO: where should this go? maybe not this file...
+def build_decks(all_cards : List[Card]) -> List[Deque[Card]]:
+    decks = [[] for _ in range(11)]  # the 0 deck should always be empty
+    for card in all_cards:
+        decks[card.age].append(card)
+    return decks
 
 
 

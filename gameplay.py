@@ -1,23 +1,44 @@
 from atomic_changes import *
+from debug_handler import DFlags
 
 # We implement gameplay as transition functions between the current state and a new state.
 
 
 def select_turn_draw(state : GameState, pid : int) -> int:
-    # find the highest top-card age on player's board
-    return max((pile[-1].age for pile in state.players[pid].board.values()))
+    # find the highest top-card age on player's board.
+    # if they have no cards, it's 1.
+    turn_draw : int = 1
+    board = state.players[pid].board
+    for color in Color:
+        if len(board[color]) > 0:
+            top_age = board[color][-1].age
+            turn_draw = max(top_age, turn_draw)
+    return turn_draw
 
 
+# Draw one card of a given age.
 def draw_n(state : GameState, pid : int, age : int) -> GameState:
-    target_deck = state.decks[age]
     # Draw from the lowest non-empty pile >= n
-    while (len(target_deck) == 0) and age <= 10:
+    if state.debug[DFlags.GAME_LOG]:
+        old_age = age
+
+    while (age <= 10) and (len(state.decks[age]) == 0):
         age += 1
-        target_deck = state.decks[age]
     if age == 11:
-        # TODO: End the game!
-        raise Exception("Game over! Endgame needs implementing.")
-    drawn_card = target_deck[-1]
+        # the game is over!
+        if state.debug[DFlags.GAME_LOG]:
+            print(f"Player {pid+1} tried to draw an 11!")
+        state.winner = pid
+        return state
+    drawn_card = state.decks[age][-1]
+
+    if state.debug[DFlags.GAME_LOG]:
+        drawn_str = f"[{old_age}]"
+        if age != old_age:
+            drawn_str += f" (--> [{age}])"
+        print(f"ACTION: Player {pid+1} draws a {drawn_str}:")
+        print(f"    {drawn_card}")
+
     return apply_funcs(state,
         [
             remove_top_card_from_deck(age),
@@ -36,17 +57,20 @@ def do_turn_draw(state : GameState, pid : int) -> GameState:
 
 # 2. Meld a card from their hand.
 def meld_from_hand(state : GameState, pid : int, card : Card) -> GameState:
+    if state.debug[DFlags.GAME_LOG]:
+        print(f"ACTION: Player {pid+1} melds {card} from their hand.")
     return apply_funcs(state,
         [
             remove_card_from_player_hand(card, pid),
-            add_card_to_player_board(card, pid, tuck=False)
+            add_card_to_player_board(card, pid, False)  # not tucked
         ]
     )
-
+    
 
 # 3. If possible, achieve. 
 # (NOTE: If this function is being called, it assumes it's valid.)
 def achieve(state : GameState, pid : int) -> GameState:
+    # TODO: DFlags.GAME_LOG print
     return apply_funcs(state,
         [
             add_card_to_player_achievements(state.achievements[-1], pid),
@@ -56,3 +80,19 @@ def achieve(state : GameState, pid : int) -> GameState:
 
 
 # 4. Use the top dogma effect on one of their piles.
+def use_dogma(state : GameState, pid : int, card_name : str) -> GameState:
+    # locate the card by name.
+    card : Card = None
+    board = state.players[pid].board
+    for color in Color:
+        if len(board[color]) > 0:
+            if board[color][-1].name == card_name:
+                card = board[color][-1]
+    if card is None:
+        raise Exception(f"Player {pid} doesn't have {card_name} on their board")
+    
+    # TODO: implement (this is a placeholder)
+    if state.debug[DFlags.GAME_LOG]:
+        print(f"ACTION: Player {pid+1} used the dogma for {card}:")
+        print(f"    [[UNIMPLEMENTED]]")
+    return state 

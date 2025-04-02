@@ -1,4 +1,4 @@
-%import .common (BASE_COLOR, ICON, NUM, CARD_NAME)
+%import .common (base_color, icon, num, CARD_NAME)
 
 %ignore /\s+/
 %ignore "#" /[^\n]/*
@@ -6,9 +6,9 @@
 
 cards: card+
 
-card: CARD_NAME "(" age BASE_COLOR ")" "{" icons dogma "}"
+card: CARD_NAME "(" age base_color ")" "{" icons dogma "}"
 
-?icons: ICON~1..6
+?icons: icon~1..6
 
 dogma: dogma_effect+
 
@@ -16,7 +16,7 @@ age: "[" value "]"
 
 dogma_effect: effect_header stmts
 
-effect_header: EFFECT_CLASS "(" ICON ")"
+effect_header: EFFECT_CLASS "(" icon ")"
 
 EFFECT_CLASS: "Shared" | "Demand"
 
@@ -34,7 +34,6 @@ general_zone: HAND
     | ACHIEVEMENTS
     | BOARD
     | TOP_CARDS
-    | BASE_COLOR "pile"
 
 MY: "my"
 YOUR: "your"
@@ -66,9 +65,10 @@ zone: player_adj general_zone
 VAL_SUPERLATIVE: "highest" | "lowest"
 COUNT_SUPERLATIVE: "strictly most" | "strictly fewest"
 
-card_sel_lambda: sel_num_cards | sel_all_cards | NUM
+// how many of which cards?
+card_sel_lambda: sel_num_cards | sel_all_cards | num
 
-sel_num_cards: "the" VAL_SUPERLATIVE? value?
+sel_num_cards: "the" VAL_SUPERLATIVE? value?  // TODO: This is too permissive! "draw the card from your hand..."
 sel_all_cards: "all the" VAL_SUPERLATIVE? | "all" VAL_SUPERLATIVE?
 
 
@@ -77,14 +77,15 @@ ITS_COLOR: "its color"
 
 QUANTIFIER: "any of" | "all of"  // TODO: redundant?
 
+// NOTE that this will be a bit confusing to transform later!
 card_is_like: QUANTIFIER? specific_cards ("is"|"are") color_select 
-    | QUANTIFIER? specific_cards ("has"|"have") "a" ICON
-    | CARD_NAME "is" PREPOS zone
+    | QUANTIFIER? specific_cards ("has"|"have") "a" icon
+    | CARD_NAME "is" _PREPOS zone
 
 CHOSEN: "chosen"
 
 ?color_select: ITS_COLOR
-    | BASE_COLOR
+    | base_color
     | "(" color_select ")"
 
 ACTOR: "you" | "anyone" | "nobody"
@@ -110,17 +111,17 @@ ANY_NUMBER_OF: "any number of"
 
 ROUND: "rounded up" | "rounded down"
 
-?value: NUM
+?value: num
     | feature_of_card
     | ANY_NUMBER_OF
     | DEMOCRACY_RECORD
     | player_adj SCORE
     | CHOSEN
     | COUNT countable
-    | value "plus" NUM
-    | value "times" NUM
-    | value "divided by" NUM ROUND?
-    | VAL_SUPERLATIVE "value" PREPOS zone
+    | value /plus/ num
+    | value /times/ num
+    | value /divided by/ num ROUND?
+    | VAL_SUPERLATIVE "value" _PREPOS zone
     | "(" value ")"  // sometimes it's nice to have parens for readability
 
 compare_op: AT_LEAST | BELOW
@@ -148,7 +149,7 @@ a_certain_feature: SAME FEATURE | ANY_ONE FEATURE
 
 value_is_superlative: value "is" COUNT_SUPERLATIVE
 
-?condition: cards_transferred 
+condition: cards_transferred 
     | ONLY_YOU_HAVE_ALL_COLORS
     | pile_is_splayed
     | card_is_like
@@ -164,7 +165,7 @@ THEM: "them"
 
 CARDS: /cards?/
 
-distinct_features: "distinct" FEATURE "s" PREPOS (THEM | zone)
+distinct_features: "distinct" FEATURE "s" _PREPOS (THEM | zone)
 
 
 FEATURE: "value" | "color"
@@ -175,17 +176,17 @@ feature_of_card: "its" FEATURE
 
 countable: referent
     | POINTS
-    | kind_of_card PREPOS zone 
-    | ICON PREPOS zone
-    | ICON PREPOS specific_cards
+    | kind_of_card _PREPOS zone 
+    | icon _PREPOS zone
+    | icon _PREPOS specific_cards
     | distinct_features
     | "(" countable ")"
 
 card_of_certain_age: age 
-card_of_certain_color: BASE_COLOR kind_of_card
-card_not_of_certain_color: "non-" BASE_COLOR kind_of_card
-card_with_certain_icon: kind_of_card "with" "a" ICON
-card_without_certain_icon: kind_of_card "without" "a" ICON
+card_of_certain_color: base_color kind_of_card
+card_not_of_certain_color: "non-" base_color kind_of_card
+card_with_certain_icon: kind_of_card "with" "a" icon
+card_without_certain_icon: kind_of_card "without" "a" icon
 card_of_certain_feature: kind_of_card "of" a_certain_feature
 
 kind_of_card: PILE_LOC kind_of_card
@@ -203,7 +204,7 @@ referent: IT | THEM | CHOSEN | THE_OTHER_ONE
 
 PILE_LOC: "top" | "bottom"
 
-PREPOS: "from" | "in" | "on" | "among"
+_PREPOS: "from" | "in" | "on" | "among"
 
 range: value | up_to_value
 
@@ -213,24 +214,25 @@ MY_CHOICE: "my choice"
 
 ?specific_cards: referent
     | MY_CHOICE
-    | card_sel_lambda kind_of_card ("other than" CARD_NAME)? ("s.t." condition)? PREPOS zone
-    | card_sel_lambda kind_of_card "of" a_certain_feature PREPOS zone
-    | range kind_of_card PREPOS zone
-    | player_adj PILE_LOC BASE_COLOR CARDS
+    | card_sel_lambda kind_of_card ("other than" CARD_NAME)? ("s.t." condition)? _PREPOS zone
+    | card_sel_lambda kind_of_card "of" a_certain_feature _PREPOS zone
+    | range kind_of_card _PREPOS zone
+    | player_adj PILE_LOC base_color CARDS
     | player_adj PILE_LOC CARDS "of" a_certain_feature  // this is too permissive FIXME
     | card_sel_lambda PILE_LOC kind_of_card
 
 
-stmts: stmt
-    | "{" (stmt "\n")+ "}"
+stmts: _stmt
+    | "{" (_stmt "\n")+ "}"
 
 
 // KINDS OF STATEMENTS
 
-stmt: draw_stmt
+_stmt: draw_stmt
     | return_stmt
     | transfer_stmt
     | meld_stmt
+    | for_colors_with_stmt
     | if_stmt
     | you_may_stmt
     | reveal_stmt
@@ -265,6 +267,9 @@ score_stmt: "score" specific_cards
 
 reveal_stmt: "reveal" specific_cards
 
+// NOTE: this is intentionally overprescribed. could be reworked, but I see no need yet
+for_colors_with_stmt: "for each color on your board with a" icon stmts
+
 if_stmt: "if" condition stmts ("else" stmts)?
 
 you_may_stmt: "you may" stmts ("or" stmts)?
@@ -281,7 +286,7 @@ democracy_stmt: "set the democracy record"
 
 special_achieve_stmt: "claim the" CARD_NAME "special achievement"
 
-win_stmt: player /wins?/
+win_stmt: player "win" "s"?
 
 choose_features_stmt: "choose" value FEATURE "s"?
 

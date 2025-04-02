@@ -1,0 +1,37 @@
+Q: In the DEffect grammar, why isn't "s.t." part of the `condition` rule?
+A: It's not grammatical to say "if s.t. (your board has a red card) {...}"! It might be more elegant to eventually make a rule specifically for the "clarifying clause" which is just "s.t. ( `condition` )", though. 
+
+Q: I had ?condition before. Why did I remove that?
+A: If we don't have a condition node, it's a little harder to keep track of the well-typedness, especially once we translate into an IR. The syntax tree is a little hairier, but in exchange I'm less likely to mess up my programming in a hard-to-catch way.
+Incidentally, this same logic is used for general_zone.
+
+Q: Why is there no expr type in the syntax?!?!?!
+A: Because nothing in the "language" can semantically accept all kinds of expressions.
+
+Q: Why do we have both ACTOR and PLAYER?
+A: This was a workaround to get "If no cards were transferred due to this effect" working nicely. We have both "anyone" and "nobody" because I didn't feel like forcing the card implementer (me) to deal with DeMorgan's laws. (Same reason ANY_AMT has two constructors.)
+
+Q: Why no arithmetic expression rule? (plus, times, and div are all part of the `value` rule)
+A: They're only ever used there. Didn't feel the need.
+
+Q: What's the deal with `value` and `card_sel_lambda` both having VAL_SUPERLATIVE?
+A: `value` is a numeric type. `card_sel_lambda` is of type Board -> Card.
+
+Q: Why are base_color, num, and icon not terminals?
+A: So they don't get optimized out of the tree, again for ease of typing.
+
+---
+
+Q: Why are DogmaEffects interpreted?
+A: A very clean idea for representing card behavior is to have DogmaEffects just be functions from GameState to GameState. Unfortunately, there's a tough bit to design around: PlayerAgents often need to make choices in the middle of an effect, *when invoking it*. Moreover, sometimes optimal strategy for one choice in an effect relies on an earlier choice (or at least, fundamentally, it could).
+- If dogmas are turned into List[Callable[[GameState], GameState]] at load-time, choices don't work.
+- If we store both (1) choices to be made over the course of the effect and (2) the effect with a placeholder for "next choice", then ordering is lost: all choices need to be supplied immediately when doing the dogma action.
+By storing DogmaEffects as trees and traversing them live, the traverser (the interpreter) can query PlayerAgents live and sequentially. This gets rid of the problem.
+
+---
+Problem: A hand is a set of cards... but Card isn't a hashable type! It has Lists in it.
+Possible solutions:
+    - make hands, boards, etc into Lists -- no need for hashing
+        - this will be less annoying to implement, I think
+    - replace all mutable fields of Card with immutable ones (FrozenList, etc)
+        - this will be annoying to implement

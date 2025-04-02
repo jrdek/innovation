@@ -1,7 +1,8 @@
 from game_state import *
 from dogma_behavior import *
 import dataclasses as dc
-from typing import Function, List, Set, Union
+from typing import List, Set, Union, Deque, Type
+from collections.abc import Callable
 from functools import partial
 from inspect import signature
 
@@ -20,7 +21,7 @@ return the state which results from taking a given action. (i.e., they're all pu
 
 
 # TODO: What's a better type signature for this?
-def apply_funcs(t : any, fs : List[Function]) -> any:
+def apply_funcs(t : any, fs : List[Callable]) -> any:
     for f in fs:
         t = f(t)
     return t
@@ -46,31 +47,29 @@ def assume_partial(func):
 ##### ADD A CARD TO A ZONE #####
 
 @assume_partial
-def assign_card_owner(id : int, card : Card) -> Card:
+def assign_card_owner(id : Optional[int], card : Card) -> Card:
     return dc.replace(card, owner=id)
 
 
 @assume_partial
-def add_card_to_set(s : Set[Card], card : Card) -> Set[Card]:
-    return s.union({card})
-
-
-@assume_partial
-def add_card_to_deque(tuck : bool, d : deque[Card], card : Card) -> deque[Card]:
+def add_card_to_deque(tuck : bool, d : Deque[Card], card : Card) -> Deque[Card]:
+    # the top card is idx -1; the bottom card is idx 0
+    # (we're doing this instead of appending because of function purity!)
     if tuck: 
-        return deque([card]) + d
+        return deque([card, *d])
     else:
-        return d + deque([card])
+        return d + deque([*d, card])
     
 
 @assume_partial
 def add_card_to_pile(tuck : bool, pi : Pile, card : Card) -> Pile:
-    return dc.replace(Pile(add_card_to_deque(tuck, deque(pi), card)), splay=pi.splay)
+    new_deque = add_card_to_deque(tuck, deque(pi), card)
+    return dc.replace(pi, cards=new_deque)
 
 
 @assume_partial
 def add_card_to_list(xs : List[Card], card : Card) -> List[Card]:
-    return xs + [card]
+    return [*xs, card]
 
 
 @assume_partial
@@ -83,7 +82,7 @@ def hide_card(card : Card) -> Card:
     return dc.replace(card, faceup=False)
 
 
-CardLoc = Union[Set[Card], List[Card], Pile, Deque]
+CardLoc = Union[List[Card], Pile, Deque]
 
 
 @assume_partial
@@ -92,9 +91,7 @@ def container_fail(dest : CardLoc, card : Card):
 
 
 def add_card_to_loc(card : Card, owner_id : int, dest : CardLoc, faceup : bool, tuck=False):
-    if type(dest) is set:
-        add_func = add_card_to_set
-    elif type(dest) is deque:
+    if type(dest) is deque:
         add_func = add_card_to_deque(tuck)
     elif type(dest) is Pile:
         add_func = add_card_to_pile(tuck)
