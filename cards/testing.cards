@@ -1,31 +1,13 @@
-Tools ([1] Blue) {
-    Hex
-    Idea Idea Castle
+Metalworking ([1] Red) {
+    Castle
+    Castle Hex Castle
 
-    Shared (Idea) {
-        you may {
-            return three cards from your hand
-            draw a [3]
-            meld it
-        }
-    }
-
-    Shared (Idea) {
-        you may {
-            return a [3] from your hand
-            draw three [1]
-        }
-    }
-}
-
-
-Calendar ([2] Blue) {
-    Hex
-    Leaf Leaf Idea
-
-    Shared (Leaf) {
-        if (# cards in your hand) is below (# cards in your score pile) {
-            draw two [3]
+    Shared (Castle) {
+        draw a [1]
+        reveal it
+        if it has a Castle {
+            score it
+            repeat this effect
         }
     }
 }

@@ -1,5 +1,4 @@
 from game_state import *
-from dogma_behavior import *
 import dataclasses as dc
 from typing import List, Set, Union, Deque, Type
 from collections.abc import Callable
@@ -177,7 +176,7 @@ def remove_card_from_loc(card : Card, dest : CardLoc) -> CardLoc:
     if card not in dest:
         raise ValueError("Card not found in "+str(dest))
     try:
-        new_dest = type(dest)([c for c in dest if c != card])
+        new_dest = type(dest)([c for c in dest if c != card])  # TODO: fixme?
         if type(new_dest) is Pile:
             new_dest.splay = dest.splay
         return new_dest
@@ -208,6 +207,22 @@ def remove_card_from_player_hand(card : Card, pid : int, state : GameState) -> G
         players=[
             p if i != pid else dc.replace(p, 
                 hand=remove_card_from_loc(card, p.hand)
+            ) for (i,p) in enumerate(state.players)
+        ]
+    )
+
+
+@assume_partial
+def remove_card_from_player_board(card : Card, pid : int, state : GameState) -> GameState:
+    # TODO: this is slightly cursed
+    return dc.replace(state,
+        players=[
+            p if i != pid else dc.replace(p, 
+                board=[
+                    pile if pile.color != card.color
+                    else remove_card_from_loc(card, p.board[card.color])
+                    for pile in p.board 
+                ]
             ) for (i,p) in enumerate(state.players)
         ]
     )

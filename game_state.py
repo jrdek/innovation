@@ -6,35 +6,8 @@ from debug_handler import DFlags, DebugHandler
 from structs import *
 import random
 
-from dogma_behavior import DEffect
-
-# let's print out cards in their colors :)
-card_colors : Dict[Color, str] = {
-    Color.RED: '\033[91m',
-    Color.YELLOW: '\033[93m',
-    Color.GREEN: '\033[92m',
-    Color.BLUE: '\033[94m',
-    Color.PURPLE: '\033[95m'
-}
-
-color_end = '\033[0m'
-
-@dataclass
-class Card:
-    name : str
-    color : Color
-    age : int
-    icons : List[Icon]
-    dogmata : List[DEffect]
-
-    # card names are unique -- if two cards have the 
-    # same name, then they are equal
-    def __eq__(self, other):
-        if type(other) is not Card: return False
-        return self.name == other.name
-    
-    def __str__(self) -> str:
-        return f"<{card_colors[self.color]}{self.name}{color_end}>"
+# TODO: move some of these classes...
+from structs import DEffect
 
 
 @dataclass

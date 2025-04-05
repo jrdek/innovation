@@ -6,19 +6,19 @@
 
 cards: card+
 
-card: card_name "(" age base_color ")" "{" icons dogma "}"
+card: card_name "([" num "]" base_color ")" "{" icons dogma "}"
 
-?icons: icon~1..6
+icons: icon~1..6
 
 dogma: dogma_effect+
 
-age: "[" value "]"
+?age: "[" value "]"
 
-dogma_effect: effect_header stmts
+dogma_effect: _effect_header stmts
 
-effect_header: effect_class "(" icon ")"
+_effect_header: EFFECT_CLASS "(" icon ")"
 
-effect_class: "Shared" | "Demand"
+EFFECT_CLASS: "Shared" | "Demand"
 
 // ARGS TO STATEMENTS
 
@@ -87,15 +87,18 @@ its_color: "its color"
 
 any_quant: "any of"
 all_quant: "all of"
-quantifier: any_quant | all_quant  // TODO: redundant?
+?quantifier: any_quant | all_quant  // TODO: redundant?
 
-// NOTE that this will be a bit confusing to transform later!
+
+cards_are_color: quantifier? specific_cards ("is"|"are") color_select 
+cards_have_icon: quantifier? specific_cards ("has"|"have") "a" icon
+card_is_in: card_name "is" _PREPOS zone
 // this is basically a bool: is property P of card c equal to x?
 // we don't use `feature` because "the card has a Red" may be different
 // from "the card is Red", and "the card is Castle" is something else altogether
-card_is_like: quantifier? specific_cards ("is"|"are") color_select 
-    | quantifier? specific_cards ("has"|"have") "a" icon
-    | card_name "is" _PREPOS zone
+?card_is_like: cards_are_color
+    | cards_have_icon
+    | card_is_in
 
 chosen: "chosen"
 
@@ -170,7 +173,7 @@ a_certain_feature: same feature | any_one feature
 
 value_is_superlative: value "is" count_superlative
 
-condition: cards_transferred 
+?condition: cards_transferred 
     | only_you_have_all_colors
     | pile_is_splayed
     | card_is_like
@@ -189,8 +192,7 @@ _CARDS: /cards?/
 distinct_features: "distinct" feature "s" _PREPOS (them | zone)
 
 
-// NOTE: base game doesn't use age here
-feature: "value" | "color" | "age"
+feature: "value" | "color"
 
 
 feature_of_card: its_feature
@@ -223,13 +225,13 @@ kind_of_card: pile_loc kind_of_card
 
 the_other_one: "the other one"
 
-referent: it | them | chosen | the_other_one
+?referent: it | them | chosen | the_other_one
 
 pile_loc: "top" | "bottom"
 
 _PREPOS: "from" | "in" | "on" | "among"
 
-range: value | up_to_value
+?range: value | up_to_value
 
 up_to_value: "up to" value
 
