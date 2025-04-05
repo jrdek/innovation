@@ -15,14 +15,40 @@ from typing import List, Union, Optional, TypeVar, Generic
 from dataclasses import dataclass
 from enum import Enum, auto
 import structs
+import lark
+from collections.abc import Callable
+
+
+T = TypeVar(name="T")  # TODO: constrain maybe
+
+
+# If something is an instance of Choice, then the interpreter
+# knows to ask the PlayerAgent to choose something.
+class Choice:
+    pass
 
 
 class IRTreeNode:
+    """
+    FIXME: It would probably be cleaner here to parse these into JSON-like structs,
+    then print them from that. This is starting to be slightly spaghetti. (It's just also
+    not core-functionality code, so I'm not too stressed about that.)
+    """
+
     def __str_helper__(self) -> List[Union[str, List]]:  # TODO: type better
         out_list = [type(self).__name__]
         for key, value in self.__dict__.items():
-            value_repr = value.__str_helper__() if isinstance(value, IRTreeNode) else [str(value)]
-            out_list.append((key, value_repr) if len(value_repr) > 1 else [f"{key}={value_repr[0]}"])
+            if isinstance(value, IRTreeNode):
+                value_repr = value.__str_helper__()
+            elif isinstance(value, lark.Tree):
+                value_repr = structs.colored_str(value.pretty(), structs.Color.RED)
+            else:
+                value_repr = [str(value)]
+            if len(value_repr) == 1 and isinstance(value_repr[0], str):
+                new_item = [f"{key}={value_repr[0]}"] 
+            else:
+                new_item = (key, value_repr)
+            out_list.append(new_item)
         return out_list
 
     def __str__(self):
@@ -30,6 +56,7 @@ class IRTreeNode:
         INDENT = '  '
         outstr = ""
         recursed_list = self.__str_helper__()
+        # input(recursed_list)
         child_stack = [recursed_list]  # stack of lists...
         index_stack = []  # and the indices we use to access them.
         index = 0
@@ -58,8 +85,6 @@ class IRTreeNode:
                         index = 0
         return outstr[:-1]
 
-        
-
 
 class Stmt(IRTreeNode):
     pass
@@ -78,38 +103,59 @@ class Expr(IRTreeNode):
     pass
 
 
+class Quantifier(IRTreeNode):
+    pass
+
+class AnyQuantifier(Quantifier):
+    pass
+
+class AllQuantifier(Quantifier):
+    pass
+
+
+class CountableExpr(Expr):
+    pass
+
+
 class BoolExpr(Expr):
     pass
 
 
-class NumberExpr(Expr):
+class NumberExpr(CountableExpr, Quantifier):
+    # TODO: should I feel weird about numbers being quantifiers?
     pass
 
 
-# TODO: IconsExpr?
+class IconsExpr(CountableExpr):
+    pass
 
-
-class IconExpr(Expr):
+class IconExpr(IconsExpr):
     pass
 
 
-class ColorExpr(Expr):
+class ColorsExpr(CountableExpr):
+    pass
+
+class ColorExpr(ColorsExpr):
     pass
 
 
-class CardsExpr(Expr):
+class CardsExpr(CountableExpr):
     pass
-
 
 class CardExpr(CardsExpr):  # TODO: evaluate design here
     pass
 
 
-class PlayerExpr(Expr):
+class PlayerExpr(CountableExpr):
+    pass
+    
+
+class AbstractZone(IRTreeNode):
     pass
 
 
-class ReferentExpr(Expr):
+class ReferentExpr(CountableExpr):
     """
     NOTE. In our grammar, the referents are
     - it / them (basically the same semantically)
@@ -120,6 +166,8 @@ class ReferentExpr(Expr):
     The card grammar is unambiguous enough to make not just the type, but
     the *antecedent* of a referent clear to a human player interpreting the
     card, so I'll trust it.
+
+    TODO: (end of day 4/4) I'm seriously reconsidering this...
     """
     pass
 
@@ -137,25 +185,50 @@ class ChosenOnesExpr(ReferentExpr):
 
 
 
-class Quantifier:
+
+
+
+
+class PileLoc(IRTreeNode):
     pass
 
-class AnyQuantifier(Quantifier):
+class BottomOfPile(PileLoc):
     pass
 
-class AllQuantifier(Quantifier):
+class TopOfPile(PileLoc):
     pass
+
+
+@dataclass
+class PlayerZoneExpr(Expr):
+    player: PlayerExpr
+    zone: AbstractZone
+
+
+@dataclass
+class FeaturesLike(IRTreeNode):
+    pile_loc: Optional[PileLoc] = None
+    is_color: Optional[ColorsExpr] = None
+    not_color: Optional[ColorsExpr] = None
+    has_icon: Optional[IconsExpr] = None
+    without_icon: Optional[IconsExpr] = None
+    in_zone: Optional[PlayerZoneExpr] = None
 
 
 @dataclass
 class CardsAreLikeExpr(BoolExpr, ABC):
-    quantifier: Optional[Quantifier]
     cards: CardsExpr
+    like: FeaturesLike
+    quantifier: Optional[Quantifier] = None
 
 
 @dataclass
-class CardsHaveIconExpr(CardsAreLikeExpr):
-    icon: IconExpr
+class CountExpr(NumberExpr):
+    countable: CountableExpr
+
+
+class PointsExpr(NumberExpr):
+    pass
 
 
 @dataclass
@@ -172,6 +245,10 @@ class IconLiteralExpr(IconExpr):
 class ColorLiteralExpr(ColorExpr):
     color: structs.Color
 
+class AnyColorExpr(ColorExpr):
+    pass
+
+
 
 @dataclass
 class UpToNumberExpr(NumberExpr):
@@ -179,9 +256,83 @@ class UpToNumberExpr(NumberExpr):
     pass
 
 
+
+class SelectionLambda(IRTreeNode):
+    pass
+
+class Superlative(SelectionLambda):
+    pass
+
+class HighestSuperlative(Superlative):
+    pass
+
+class LowestSuperlative(Superlative):
+    pass
+
+
+# How many of which cards are we selecting?
+@dataclass
+class SelectionStrategy(IRTreeNode):
+    num: Optional[NumberExpr] = None # None means all of them
+    selection_lambda: Optional[SelectionLambda] = None
+
+
+@dataclass
+class CardsThatExpr(CardsExpr):
+    that: FeaturesLike
+    strat: Optional[SelectionStrategy] = None
+    
+
+
 @dataclass
 class CardNameExpr(CardExpr):  # CardExpr because you can refer to cards by their names
     name: str
+
+class NumericCompareOp(IRTreeNode):
+    pass
+
+class BelowCompareOp(NumericCompareOp):
+    pass
+
+class AtLeastCompareOp(NumericCompareOp):
+    pass
+
+
+@dataclass
+class ComparisonExpr(BoolExpr):
+    thing_1: NumberExpr
+    compare_op: NumericCompareOp
+    thing_2: NumberExpr
+
+
+class HandZone(AbstractZone):
+    pass
+
+class ScoreZone(AbstractZone):
+    pass
+
+class AchievementsZone(AbstractZone):
+    pass
+
+class BoardZone(AbstractZone):
+    pass
+
+class TopCardsZone(AbstractZone):
+    pass
+
+class BottomCardsZone(AbstractZone):
+    pass  # not sure if this is needed, but I'm including it on principle
+
+
+class YouExpr(PlayerExpr):
+    pass
+
+class MeExpr(PlayerExpr):
+    pass
+
+
+class MyChoiceOfCardExpr(CardExpr, Choice):
+    pass
 
 
 @dataclass
@@ -206,12 +357,21 @@ class ScoreStmt(Stmt):
     cards: CardsExpr
 
 
-@dataclass
 class RepeatStmt(Stmt):
     pass
 
 
+@dataclass
+class YouMayStmt(Stmt):
+    path_1 : Stmts
+    path_2 : Optional[Stmts] = None
 
 
+@dataclass
+class ReturnStmt(Stmt):
+    cards: CardsExpr
 
+@dataclass
+class MeldStmt(Stmt):
+    cards: CardsExpr
 

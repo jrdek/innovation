@@ -97,7 +97,6 @@ class DogmaTransformer(Transformer):
     def card_name(self, children):
         return CardNameExpr(*children)
 
-    
 
     def it(self, _):
         return ThoseOnesExpr()
@@ -105,6 +104,47 @@ class DogmaTransformer(Transformer):
     def them(self, _):
         return ThoseOnesExpr()
 
+
+    def hand(self, _):
+        return HandZone()
+    
+    def score_pile(self, _):
+        return ScoreZone()
+    
+    def achievements(self, _):
+        return AchievementsZone()
+    
+    def board(self, _):
+        return BoardZone()
+    
+    def top_cards(self, _):
+        return TopCardsZone()
+    
+
+    def zone(self, children):
+        return PlayerZoneExpr(*children)
+
+    
+    def your(self, _):
+        return YouExpr()
+    
+
+    def below(self, _):
+        return BelowCompareOp()
+    
+    def at_least(self, _):
+        return AtLeastCompareOp()
+    
+    def compare_op(self, children):
+        return children[0]
+    
+
+    def comparison(self, children):
+        return ComparisonExpr(*children)
+    
+    
+    def count(self, children):
+        return CountExpr(*children)
 
 
     def any_quant(self, _):
@@ -116,10 +156,81 @@ class DogmaTransformer(Transformer):
 
     def cards_have_icon(self, children):
         if len(children) == 3:
-            return CardsHaveIconExpr(*children)
+            quantifier, cards, icon = children
         else:
-            return CardsHaveIconExpr(None, *children)
+            assert(len(children) == 2)
+            quantifier = None
+            cards, icon = children
+        like = FeaturesLike(has_icon=icon)
+        return CardsAreLikeExpr(cards, like, quantifier)
+        
 
+
+    def kind_of_card(self, children):
+        # TODO: probably room for some good disjunction/conjunction logic here...
+        pile_loc, is_color, not_color, has_icon, without_icon = None, None, None, None, None
+        in_zone = None
+        for child in children:
+            # TODO: copy-construct manually here, I think
+            pass
+        features = FeaturesLike(pile_loc, is_color, not_color, has_icon, without_icon, in_zone)
+        return features
+    
+
+    def highest(self, _):
+        return HighestSuperlative()
+    
+    def lowest(self, _):
+        return LowestSuperlative()
+
+    def sel_num_cards(self, children):
+        superlative, num = None, None
+        if len(children) == 1:
+            if isinstance(children[0], Superlative):
+                superlative = children[0]
+            else:
+                assert isinstance(children[0], NumberLiteralExpr)
+                num = children[0]
+        else:
+            superlative, num = children
+        return SelectionStrategy(num=num, selection_lambda=superlative)
+    
+    def sel_all_cards(self, children):
+        superlative = None
+        if children:
+            assert len(children) == 1
+            assert isinstance(children[0], Superlative)
+            superlative = children[0]
+        return SelectionStrategy(selection_lambda=superlative)
+    
+    def card_sel_lambda(self, children):
+        child = children[0]
+        if isinstance(child, NumberExpr):
+            return SelectionStrategy(num=child)
+        # otherwise, we built the strategy already
+        return child
+    
+    def specific_cards(self, children):
+        # TODO: cases :(
+        if isinstance(children[0], SelectionStrategy):
+            strat = children[0]
+            that = children[1]
+            assert type(that) is FeaturesLike
+            # TODO: parse the remaining 2-3 args in the first two cases
+            return CardsThatExpr(that=that, strat=strat)
+        raise Exception(f"Unhandled type for children[0]: {type(children[0])}")
+
+
+
+
+    def countable(self, children):
+        # TODO: lots of case work
+        if isinstance(children[0], FeaturesLike):
+            assert len(children) == 2
+            features, zone = children
+            features.in_zone = zone
+            return CardsThatExpr(that=features)
+        raise Exception(f"Unhandled type for children[0]: {type(children[0])}")
 
 
     def draw_stmt(self, children):
@@ -136,6 +247,15 @@ class DogmaTransformer(Transformer):
 
     def score_stmt(self, children):
         return ScoreStmt(*children)
+    
+    def return_stmt(self, children):
+        return ReturnStmt(*children)
+    
+    def meld_stmt(self, children):
+        return MeldStmt(*children)
+    
+    def you_may_stmt(self, children):
+        return YouMayStmt(*children)
     
 
     def stmts(self, children):

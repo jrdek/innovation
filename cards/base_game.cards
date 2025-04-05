@@ -1428,7 +1428,7 @@ Collaboration ([9] Green) {
     Demand (Crown) {
         draw two [9]
         reveal them
-        transfer my choice to my board
+        transfer the card I choose to my board
         meld the other one
     }
 

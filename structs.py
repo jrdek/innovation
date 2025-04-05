@@ -65,6 +65,10 @@ card_colors : Dict[Color, str] = {
 color_end = '\033[0m'
 
 
+def colored_str(s : str, c : Color) -> str:
+    return card_colors[c] + s + color_end
+
+
 # A DEffect corresponds to `dogma_effect` in the grammar:
 # - the `effect_header` is stored as DEffect.key_icon and DEffect.is_demand
 # - the `stmts` are stored as a list of DogmaActions
@@ -101,7 +105,7 @@ class Card:
     
     def detailed_str(self) -> str:
         return \
-        f"<{card_colors[self.color]}[{self.age}] {self.name}{color_end}>\n" + \
+        f"<{colored_str(f'[{self.age}] {self.name}', self.color)}>\n" + \
         str(self.icons[0]) + "\n" + \
         '\t'.join(str(i) for i in self.icons[1:]) + "\n" + \
         "\n".join(str(d) for d in self.dogmata)

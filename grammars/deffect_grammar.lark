@@ -33,7 +33,7 @@ achievements: "achievements"
 board: "board" "s"?
 top_cards: "top cards"
 
-general_zone: hand
+_general_zone: hand
     | score_pile
     | achievements
     | board
@@ -57,7 +57,7 @@ player: you
 
 specific_players: someone ("s.t. (" condition ")")? "'s"
 
-player_adj: my
+_player_adj: my
     | your
     | their
     | specific_players
@@ -66,7 +66,7 @@ player_adj: my
     | everyone_elses
     | anyone_elses
 
-zone: player_adj general_zone 
+zone: _player_adj _general_zone 
 
 strictly_most: "strictly most"
 strictly_fewest: "strictly fewest"
@@ -139,7 +139,7 @@ count: "#" countable
     | feature_of_card
     | any_number_of
     | democracy_record
-    | player_adj score
+    | _player_adj score
     | chosen
     | count
     | value /plus/ num
@@ -150,15 +150,15 @@ count: "#" countable
 
 compare_op: at_least | below
 
-comparison: player_adj? value "is" compare_op? value
+comparison: _player_adj? value "is" compare_op? value
 
 any_color: "any one color"  // TODO: what if I want to say "any two colors"?
 
 any_one: "any one"
 
-player_color_cards: player_adj color_select _CARDS
-    | player_adj _CARDS "of" feature_of_card
-    | any_color "of" player_adj _CARDS ("which is splayed" direction)?
+player_color_cards: _player_adj color_select _CARDS
+    | _player_adj _CARDS "of" feature_of_card
+    | any_color "of" _player_adj _CARDS ("which is splayed" direction)?
     | "(" player_color_cards ")"
 
 pile_is_splayed: player_color_cards "are splayed" direction?
@@ -235,17 +235,17 @@ _PREPOS: "from" | "in" | "on" | "among"
 
 up_to_value: "up to" value
 
-my_choice: "my choice"
+my_choice_of_card: "the card I choose"
 
 other_than: "other than"
 
 ?specific_cards: referent
-    | my_choice
+    | my_choice_of_card
     | card_sel_lambda kind_of_card (other_than card_name)? ("s.t." condition)? _PREPOS zone
     | card_sel_lambda kind_of_card "of" a_certain_feature _PREPOS zone
     | range kind_of_card _PREPOS zone
-    | player_adj pile_loc base_color _CARDS
-    | player_adj pile_loc _CARDS "of" a_certain_feature  // this is too permissive FIXME
+    | _player_adj pile_loc base_color _CARDS
+    | _player_adj pile_loc _CARDS "of" a_certain_feature  // this is too permissive FIXME
     | card_sel_lambda pile_loc kind_of_card
 
 
