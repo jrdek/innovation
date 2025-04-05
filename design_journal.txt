@@ -36,3 +36,51 @@ Possible solutions:
 ---
 Vital observation: terminals with multiple constructors should have a parent non-terminal!
 This way we can transform them easily.
+
+
+------
+
+Initial game workflow sketch:
+
+When a player (or rather, a Player agent) uses a card's dogma, the dogma effects will be executed in order. Notably, some of these effects will involve asking PlayerAgents for choices. 
+
+In particular, here's how the execution flow should look:
+
+1a. The Director asks the PlayerAgent whose turn it is what action they'd like to take (drawing a card, melding a card, using a dogma, or claiming an achievement). In so asking, the Director also gives that Agent the current GameState. The agent can analyze the GameState however it wants, but it may not mutate it -- the "current state" lives in the Director, and only the Director can modify it.
+
+1b. The agent responds with an action.
+
+2. The Director invokes the action. Assuming the request is valid, this (eventually) provides the Director with a list of functions which compose into something taking a GameState and returning a GameState.
+
+3. The Director updates its "current state" by applying the function made in step 2.
+
+4. If the game is not over, the Director updates the active player (if needed) and returns to step 1a.
+
+~~
+
+Requests to draw, meld, and achieve are simple both to validate and to "compile". So let's suppose the active player requests a dogma action. Then step 2 above looks like this:
+
+1. The Director checks to see if one of the top cards on that player's board (that is, one of the Card objects at the "top" of one of the Pile objects on that player's Board in the current GameState) has the given name. If not, it throws an error.
+
+2. For each dogma effect in that Card's Dogma (list of DogmaEffects):
+
+2a. For each player (starting with the next player, ending with the current player), the Director checks if that player is subject to the dogma effect (according to icon counting). If they are:
+
+2b. The Director instantiates a DogmaEffectInterpreter, which walks the IR tree for that dogma effect and evaluates (and eventually returns) the list of functions to be applied to the GameState after that player executes the DogmaEffect. If the interpreter ever hits a node which requires agent choice, it takes a snapshot of the GameState with all changes from the DogmaEffect's statements so far applied, hands the relevant PlayerAgent(s) that snapshot for information, and asks them to make the relevant choice(s).
+Note that a smart PlayerAgent should be able to analyze future possible GameStates! This means agents should be able to use the DogmaEffectInterpreter however they'd like. Again, though, only the Director is able to modify the "current GameState".
+
+
+
+TODO: Do cards actually need an `owner` field?
+If I am choosing a card from your score pile, I can only see its age.
+This might be accomplished by *me* using a restricted view function... but then an agent could cheat!
+This functionality should instead live in either the card or the container.
+Consider:
+    The interpreter reads that "you" are to choose a card from "my" score pile.
+    It queries your PlayerAgent for that choice, so "you" get the current GameState.
+
+4/4: I'm removing the `owner` and `faceup` fields. 
+"Reveal <card C>", when interpreted, should 
+    - compile the GameState,
+    - "message" all PlayerAgents that C is in whatever location it's in, letting them update their models of the world however they want,
+    - and continue interpreting.

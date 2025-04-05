@@ -8,6 +8,16 @@ import random
 
 from dogma_behavior import DEffect
 
+# let's print out cards in their colors :)
+card_colors : Dict[Color, str] = {
+    Color.RED: '\033[91m',
+    Color.YELLOW: '\033[93m',
+    Color.GREEN: '\033[92m',
+    Color.BLUE: '\033[94m',
+    Color.PURPLE: '\033[95m'
+}
+
+color_end = '\033[0m'
 
 @dataclass
 class Card:
@@ -16,11 +26,6 @@ class Card:
     age : int
     icons : List[Icon]
     dogmata : List[DEffect]
-    # Cards are hidden by default
-    faceup : bool
-    # Player IDs are represented as ints.
-    # players[0] is None; all others are actual players
-    owner : int
 
     # card names are unique -- if two cards have the 
     # same name, then they are equal
@@ -29,7 +34,7 @@ class Card:
         return self.name == other.name
     
     def __str__(self) -> str:
-        return f"<{self.name}>"
+        return f"<{card_colors[self.color]}{self.name}{color_end}>"
 
 
 @dataclass
@@ -150,7 +155,6 @@ def build_decks(all_cards : List[Card]) -> List[Deque[Card]]:
     #     for p in self.players:
     #         for _ in range(2):
     #             drawn_card = self.decks[1].pop()
-    #             drawn_card.owner = p
     #             p.hand.add(drawn_card)
     #         p.agent.choose_meld_from_hand()
 

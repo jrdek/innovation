@@ -53,6 +53,7 @@ class Director():
 
 
     def load_cards(self, path : str):
+        # TODO: rework this
         self.all_cards += parse_cards.get_cards_from_path(path)
 
 

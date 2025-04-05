@@ -47,11 +47,6 @@ def assume_partial(func):
 ##### ADD A CARD TO A ZONE #####
 
 @assume_partial
-def assign_card_owner(id : Optional[int], card : Card) -> Card:
-    return dc.replace(card, owner=id)
-
-
-@assume_partial
 def add_card_to_deque(tuck : bool, d : Deque[Card], card : Card) -> Deque[Card]:
     # the top card is idx -1; the bottom card is idx 0
     # (we're doing this instead of appending because of function purity!)
@@ -72,16 +67,6 @@ def add_card_to_list(xs : List[Card], card : Card) -> List[Card]:
     return [*xs, card]
 
 
-@assume_partial
-def show_card(card : Card) -> Card:
-    return dc.replace(card, faceup=True)
-
-
-@assume_partial
-def hide_card(card : Card) -> Card:
-    return dc.replace(card, faceup=False)
-
-
 CardLoc = Union[List[Card], Pile, Deque]
 
 
@@ -90,7 +75,7 @@ def container_fail(dest : CardLoc, card : Card):
     raise TypeError(f"Unhandled container type {type(dest)}")
 
 
-def add_card_to_loc(card : Card, owner_id : int, dest : CardLoc, faceup : bool, tuck=False):
+def add_card_to_loc(card : Card, dest : CardLoc, tuck=False):
     if type(dest) is deque:
         add_func = add_card_to_deque(tuck)
     elif type(dest) is Pile:
@@ -99,17 +84,11 @@ def add_card_to_loc(card : Card, owner_id : int, dest : CardLoc, faceup : bool, 
         add_func = add_card_to_list
     else:
         add_func = container_fail
-    
-    if faceup:
-        show_func = show_card
-    else:
-        show_func = hide_card
 
+    # TODO: simplify
     return apply_funcs(
         card,
         [
-            show_func,
-            assign_card_owner(owner_id),
             add_func(dest)
         ]
     )
@@ -120,7 +99,7 @@ def add_card_to_player_hand(card : Card, pid : int, state : GameState) -> GameSt
     return dc.replace(state,
         players=[
             p if i != pid else dc.replace(p, 
-                hand=add_card_to_loc(card, owner_id=pid, dest=p.hand, faceup=False)
+                hand=add_card_to_loc(card, dest=p.hand)
             ) for (i,p) in enumerate(state.players)
         ]
     )
@@ -131,7 +110,7 @@ def add_card_to_player_score(card : Card, pid : int, state : GameState) -> GameS
     return dc.replace(state,
         players=[
             p if i != pid else dc.replace(p, 
-                scored_cards=add_card_to_loc(card, owner_id=pid, dest=p.scored_cards, faceup=False)
+                scored_cards=add_card_to_loc(card, dest=p.scored_cards)
             ) for (i,p) in enumerate(state.players)
         ]
     )
@@ -142,7 +121,7 @@ def add_card_to_player_achievements(card : Card, pid : int, state : GameState) -
     return dc.replace(state,
         players=[
             p if i != pid else dc.replace(p, 
-                achieved_cards=add_card_to_loc(card, owner_id=pid, dest=p.achieved_cards, faceup=False)
+                achieved_cards=add_card_to_loc(card, dest=p.achieved_cards)
             ) for (i,p) in enumerate(state.players)
         ]
     )
@@ -155,7 +134,7 @@ def add_card_to_player_board(card : Card, pid : int, tuck : bool, state : GameSt
             p if i != pid else dc.replace(p,
                 board={
                     **p.board,
-                    card.color: add_card_to_loc(card, owner_id=pid, dest=p.board[card.color], faceup=True, tuck=tuck)
+                    card.color: add_card_to_loc(card, dest=p.board[card.color], tuck=tuck)
                 }
             ) 
             for (i, p) in enumerate(state.players)
@@ -178,7 +157,7 @@ def gain_special_achievement(sa : SpecialAchievement, pid : int, state : GameSta
 def add_card_to_deck(card : Card, tuck : bool, state : GameState) -> GameState:
     return dc.replace(state,
         decks=[
-            d if i != card.age else add_card_to_loc(card, owner_id=0, dest=d, faceup=False, tuck=tuck)
+            d if i != card.age else add_card_to_loc(card, dest=d, tuck=tuck)
             for (i, d) in enumerate(state.decks)
         ]
     )
@@ -187,7 +166,7 @@ def add_card_to_deck(card : Card, tuck : bool, state : GameState) -> GameState:
 @assume_partial
 def add_card_to_global_achievements(card : Card, state : GameState) -> GameState:
     return dc.replace(state,
-        achievements=add_card_to_loc(card, owner_id=0, dest=state.achievements, faceup=False)
+        achievements=add_card_to_loc(card, dest=state.achievements)
     )
 
 
