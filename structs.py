@@ -53,6 +53,13 @@ splay_indices = (
 )
 
 
+class PlayerField(Enum):
+    HAND = auto()
+    BOARD = auto()
+    SCORE_PILE = auto()
+    ACHIEVEMENTS_PILE = auto()
+
+
 # let's print out cards in their colors :)
 card_colors : Dict[Color, str] = {
     Color.RED: '\033[91m',

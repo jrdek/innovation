@@ -3,7 +3,6 @@ from game_state import GameState, build_decks, get_empty_PlayerState
 from player_agents import PlayerAgent
 import parse_cards
 from typing import List, Optional
-from lark import ParseTree
 from game_state import Card
 from collections.abc import Callable
 from debug_handler import DebugHandler, DFlags

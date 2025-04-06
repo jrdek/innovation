@@ -1,3 +1,72 @@
+### <1>
+Writing ([1] Blue) {
+    Hex
+    Idea Idea Crown
+
+    Shared (Idea) {
+        draw a [2]
+    }
+}
+
+
+Sailing ([1] Green) {
+    Crown
+    Crown Hex Leaf
+
+    Shared (Crown) {
+        draw a [1]
+        meld it
+    }
+}
+
+
+TheWheel ([1] Green) {
+    Hex
+    Castle Castle Castle
+
+    Shared (Castle) {
+        draw two [1]
+    }
+}
+
+
+Archery ([1] Red) {
+    Castle
+    Idea Hex Castle
+
+    Demand (Castle) {
+        draw a [1]
+        transfer the highest card from your hand to my hand
+    }
+}
+
+
+Domestication ([1] Yellow) {
+    Castle
+    Crown Hex Castle
+
+    Shared (Castle) {
+        meld the lowest card from your hand
+        draw a [1]
+    }
+}
+
+
+Metalworking ([1] Red) {
+    Castle
+    Castle Hex Castle
+
+    Shared (Castle) {
+        draw a [1]
+        reveal it
+        if it has a Castle {
+            score it
+            repeat this effect
+        }
+    }
+}
+
+
 Tools ([1] Blue) {
     Hex
     Idea Idea Castle
@@ -5,27 +74,152 @@ Tools ([1] Blue) {
     Shared (Idea) {
         you may {
             return three cards from your hand
-            draw a [3]
-            meld it
+            if you do {
+                draw a [3]
+                meld it
+            }
         }
     }
 
     Shared (Idea) {
         you may {
             return a [3] from your hand
-            draw three [1]
+            if you do {
+                draw three [1]
+            }
         }
     }
 }
 
 
-Calendar ([2] Blue) {
+Oars ([1] Red) {
+    Castle
+    Crown Hex Castle
+
+    Demand (Castle) {
+        transfer a card with a Crown from your hand to my score pile
+        if you do {
+            draw a [1]
+            repeat this effect
+        }
+    }
+
+    Shared (Castle) {
+        if nobody transferred any cards {
+            draw a [1]
+        }
+    }
+}
+
+
+CodeOfLaws ([1] Purple) {
     Hex
-    Leaf Leaf Idea
+    Crown Crown Leaf
+
+    Shared (Crown) {
+        you may {
+            tuck a card s.t. (any of the cards on your board are its color) from your hand
+            if you do {
+                you may {
+                    splay your cards of its color left
+                }
+            }
+        }
+    }
+}
+
+
+Mysticism ([1] Purple) {
+    Hex
+    Castle Castle Castle
+
+    Shared (Castle) {
+        draw a [1]
+        reveal it
+        if any of the cards on your board are its color {
+            meld it
+            draw a [1]
+        }
+    }
+}
+
+
+Masonry ([1] Yellow) {
+    Castle
+    Hex Castle Castle
+
+    Shared (Castle) {
+        you may {
+            meld any number of cards from your hand
+        }
+        if (# them) is at least four {
+            claim the Monument special achievement
+        }
+    }
+}
+
+
+Pottery ([1] Blue) {
+    Hex
+    Leaf Leaf Leaf
 
     Shared (Leaf) {
-        if (# cards in your hand) is below (# cards in your score pile) {
-            draw two [3]
+        you may {
+            return up to three cards from your hand
+            if you do {
+                draw a [# them]
+                score it
+            }
+        }
+    }
+
+    Shared (Leaf) {
+        draw a [1]
+    }
+}
+
+
+Agriculture ([1] Yellow) {
+    Hex
+    Leaf Leaf Leaf
+
+    Shared (Leaf) {
+        you may {
+            return a card from your hand
+            if you do {
+                draw a [its value plus one]
+                score it
+            }
+        }
+    }
+}
+
+
+Clothing ([1] Green) {
+    Hex
+    Crown Leaf Leaf
+
+    Shared (Leaf) {
+        meld a card s.t. not (any of the cards on your board are its color) from your hand
+    }
+
+    Shared (Leaf) {
+        draw (# colors on only your board) [1]
+        score them
+    }
+}
+
+
+CityStates ([1] Purple) {
+    Hex
+    Crown Crown Crown
+
+    Demand (Crown) {
+        if # Castles on your board is at least four {
+            transfer a top card with a Castle from your board to my board
+            if you do {
+                draw a [1]
+            }
         }
     }
 }

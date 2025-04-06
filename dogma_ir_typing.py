@@ -17,9 +17,7 @@ from enum import Enum, auto
 import structs
 import lark
 from collections.abc import Callable
-
-
-T = TypeVar(name="T")  # TODO: constrain maybe
+from frozenlist import FrozenList
 
 
 # If something is an instance of Choice, then the interpreter
@@ -38,12 +36,15 @@ class IRTreeNode:
     def __str_helper__(self) -> List[Union[str, List]]:  # TODO: type better
         out_list = [type(self).__name__]
         for key, value in self.__dict__.items():
-            if isinstance(value, IRTreeNode):
+            if key == "__orig_class__":
+                continue  # don't care about this for now - it's a Typing artifact
+            elif isinstance(value, IRTreeNode):
                 value_repr = value.__str_helper__()
             elif isinstance(value, lark.Tree):
                 value_repr = structs.colored_str(value.pretty(), structs.Color.RED)
             else:
                 value_repr = [str(value)]
+
             if len(value_repr) == 1 and isinstance(value_repr[0], str):
                 new_item = [f"{key}={value_repr[0]}"] 
             else:
@@ -91,22 +92,40 @@ class Stmt(IRTreeNode):
 
 
 # a Stmts object is the root of every DEffect tree
-class Stmts(IRTreeNode, List[Stmt]):  # TODO: This is breaking some or other idiom. Does this *have* a List, or *is* it a List?
+# TODO: pretty-printing Stmts objects is half broken
+class Stmts(IRTreeNode, FrozenList[Stmt]):  # TODO: This is breaking some or other idiom. Does this *have* a List, or *is* it a List?
     def __str_helper__(self):
-        return [stmt.__str_helper__() for stmt in self]
+        if not self:
+            return ["[]"]
+        return [stmt.__str_helper__() 
+                if isinstance(stmt, Stmt) 
+                else structs.colored_str(stmt.pretty(), structs.Color.RED) 
+                for stmt in self]
     
-    def __str__(self):  
+    def __str__(self):
+        input(len(self))
+        if len(self) == 0:
+            return "[]"
         return '\n'.join(str(stmt) for stmt in self)
 
 
 class Expr(IRTreeNode):
     pass
 
+class CardFeature(Expr):
+    pass
+
+T = TypeVar(name="T")
+F = TypeVar(name="F", bound=CardFeature)
+
 
 class Quantifier(IRTreeNode):
     pass
 
 class AnyQuantifier(Quantifier):
+    pass
+
+class NoneQuantifier(Quantifier):
     pass
 
 class AllQuantifier(Quantifier):
@@ -120,20 +139,33 @@ class CountableExpr(Expr):
 class BoolExpr(Expr):
     pass
 
+class SuccessExpr(BoolExpr):
+    pass
 
-class NumberExpr(CountableExpr, Quantifier):
-    # TODO: should I feel weird about numbers being quantifiers?
+# type which maps Ts to bools; basically a predicate on Ts
+class BoolFunc(IRTreeNode, Generic[T]):
+    pass
+
+class NumbersExpr(CountableExpr, CardFeature):
     pass
 
 
-class IconsExpr(CountableExpr):
+class NumberExpr(NumbersExpr):
+    pass
+
+
+class AllNumberExpr(NumberExpr):
+    pass
+
+
+class IconsExpr(CountableExpr, CardFeature):
     pass
 
 class IconExpr(IconsExpr):
     pass
 
 
-class ColorsExpr(CountableExpr):
+class ColorsExpr(CountableExpr, CardFeature):
     pass
 
 class ColorExpr(ColorsExpr):
@@ -146,8 +178,10 @@ class CardsExpr(CountableExpr):
 class CardExpr(CardsExpr):  # TODO: evaluate design here
     pass
 
+class PlayersExpr(CountableExpr):
+    pass
 
-class PlayerExpr(CountableExpr):
+class PlayerExpr(PlayersExpr):
     pass
     
 
@@ -155,7 +189,7 @@ class AbstractZone(IRTreeNode):
     pass
 
 
-class ReferentExpr(CountableExpr):
+class ReferentExpr(CardExpr):
     """
     NOTE. In our grammar, the referents are
     - it / them (basically the same semantically)
@@ -183,13 +217,10 @@ class OtherOnesExpr(ReferentExpr):
 class ChosenOnesExpr(ReferentExpr):
     pass
 
+class DemocracyRecordExpr(NumberExpr):
+    pass
 
-
-
-
-
-
-class PileLoc(IRTreeNode):
+class PileLoc(CardFeature):
     pass
 
 class BottomOfPile(PileLoc):
@@ -205,21 +236,51 @@ class PlayerZoneExpr(Expr):
     zone: AbstractZone
 
 
+FeaturesLike = BoolFunc[CardFeature]
+
+class AnyFeatures(FeaturesLike):
+    pass
+
+class SelectionLambda(IRTreeNode):
+    pass
+
+class AnySelection(SelectionLambda):
+    pass
+
+class Superlative(SelectionLambda):
+    pass
+
+class HighestSuperlative(Superlative):
+    pass
+
+class LowestSuperlative(Superlative):
+    pass
+
+class ExtremeValueExpr(NumberExpr):
+    superlative: Superlative
+    zone: PlayerZoneExpr
+
+class ColorsOnOnlyYourBoardExpr(ColorsExpr):
+    pass
+
+# How many of which cards are we selecting?
+@dataclass(kw_only=True)
+class ZonelessSelectionStrategy(IRTreeNode):
+    num: NumberExpr = AllNumberExpr()
+    selection_lambda: Optional[SelectionLambda] = AnySelection()
+
+# From where?
 @dataclass
-class FeaturesLike(IRTreeNode):
-    pile_loc: Optional[PileLoc] = None
-    is_color: Optional[ColorsExpr] = None
-    not_color: Optional[ColorsExpr] = None
-    has_icon: Optional[IconsExpr] = None
-    without_icon: Optional[IconsExpr] = None
-    in_zone: Optional[PlayerZoneExpr] = None
+class ZonedSelectionStrategy(ZonelessSelectionStrategy):
+    src: PlayerZoneExpr
+
 
 
 @dataclass
 class CardsAreLikeExpr(BoolExpr, ABC):
     cards: CardsExpr
     like: FeaturesLike
-    quantifier: Optional[Quantifier] = None
+    quantifier: Optional[Quantifier] = AnyQuantifier()  # CHECKME: not all?
 
 
 @dataclass
@@ -245,47 +306,72 @@ class IconLiteralExpr(IconExpr):
 class ColorLiteralExpr(ColorExpr):
     color: structs.Color
 
-class AnyColorExpr(ColorExpr):
-    pass
-
-
 
 @dataclass
-class UpToNumberExpr(NumberExpr):
+class UpToNumberExpr(NumberExpr, Choice):
     # user must choose how many, up to [num].
-    pass
+    upper_bound: NumberExpr
 
 
-
-class SelectionLambda(IRTreeNode):
-    pass
-
-class Superlative(SelectionLambda):
-    pass
-
-class HighestSuperlative(Superlative):
-    pass
-
-class LowestSuperlative(Superlative):
-    pass
-
-
-# How many of which cards are we selecting?
 @dataclass
-class SelectionStrategy(IRTreeNode):
-    num: Optional[NumberExpr] = None # None means all of them
-    selection_lambda: Optional[SelectionLambda] = None
+class SumExpr(NumberExpr):
+    left: NumberExpr
+    right: NumberExpr
+
+@dataclass
+class ProductExpr(NumberExpr):
+    left: NumberExpr
+    right: NumberExpr
+
+class RoundDir(IRTreeNode):
+    pass
+
+class RoundedUp(RoundDir):
+    pass
+
+class RoundedDown(RoundDir):
+    pass
+
+@dataclass
+class QuotientExpr(NumberExpr):
+    dividend: NumberExpr
+    divisor: NumberExpr
+    round_dir: RoundDir = RoundedDown()
+
+@dataclass
+class PlayerScoreExpr(NumberExpr):
+    player: PlayerExpr
 
 
+
+class NoCondition(BoolExpr):
+    pass
+
+@dataclass
+class ZonelessCardsThatExpr(CardsExpr):
+    that: FeaturesLike
+    strat: Optional[ZonelessSelectionStrategy] = None  # TODO: de-Noneify this
+    condition: BoolExpr = NoCondition()
+
+# TODO: should this inherit from ZonelessCardsThat?
 @dataclass
 class CardsThatExpr(CardsExpr):
     that: FeaturesLike
-    strat: Optional[SelectionStrategy] = None
+    strat: Optional[ZonedSelectionStrategy] = None # TODO: what to do if this is None?
+    condition: BoolExpr = NoCondition()
     
 
+@dataclass
+class IconsInCardsExpr(NumberExpr):
+    icons: IconsExpr
+    cards: CardsThatExpr
+
+
+class CardNamesExpr(CardExpr, CardFeature):  # CardExpr because you can refer to cards by their names
+    pass
 
 @dataclass
-class CardNameExpr(CardExpr):  # CardExpr because you can refer to cards by their names
+class CardNameExpr(CardNamesExpr):
     name: str
 
 class NumericCompareOp(IRTreeNode):
@@ -305,18 +391,86 @@ class ComparisonExpr(BoolExpr):
     thing_2: NumberExpr
 
 
-class HandZone(AbstractZone):
+# intuition: eval quantifier(set of players who transferred cards)
+@dataclass
+class CardsWereTransferredExpr(BoolExpr):
+    actor: PlayersExpr
+
+
+@dataclass
+class AndExpr(BoolExpr):
+    left: BoolExpr
+    right: BoolExpr
+
+@dataclass
+class OrExpr(BoolExpr):
+    left: BoolExpr
+    right: BoolExpr
+
+@dataclass
+class NotExpr(BoolExpr):
+    pred: BoolExpr
+
+# ideally, AnyOne would be a single object...
+# but typing that is hard. so we'll make one per
+# feature.
+class AnyNumber(NumberExpr, Choice):
     pass
 
-class ScoreZone(AbstractZone):
+class AnyColor(ColorExpr, Choice):
     pass
 
-class AchievementsZone(AbstractZone):
-    pass
+@dataclass
+class ValuesOfCards(NumbersExpr):
+    cards: CardExpr
 
-class BoardZone(AbstractZone):
-    pass
+@dataclass
+class ColorsOfCards(ColorsExpr):
+    cards: CardExpr
 
+@dataclass
+class NamesOfCards(CardNamesExpr):
+    cards: CardExpr
+
+@dataclass
+class ValueOfCard(NumberExpr):
+    card: CardExpr
+
+@dataclass
+class ColorOfCard(ColorExpr):
+    card: CardExpr
+
+@dataclass
+class NameOfCard(CardNameExpr):
+    card: CardExpr
+
+
+@dataclass
+class HasFeatureFunc(BoolFunc[F]):
+    feature: F
+
+# TODO: does this require separate and/or/not
+# types from just the *boolean* and/or/not?
+
+@dataclass
+class AndFunc(BoolFunc[T]):
+    left: BoolFunc[T]
+    right: BoolFunc[T]
+
+@dataclass
+class OrFunc(BoolFunc[T]):
+    left: BoolFunc[T]
+    right: BoolFunc[T]
+
+@dataclass
+class NotFunc(BoolFunc[T]):
+    pred: BoolFunc[T]
+
+@dataclass
+class AbstractZoneLiteral(AbstractZone):
+    field: structs.PlayerField
+
+# TODO: integrate these nicely with the literals
 class TopCardsZone(AbstractZone):
     pass
 
@@ -328,6 +482,21 @@ class YouExpr(PlayerExpr):
     pass
 
 class MeExpr(PlayerExpr):
+    pass
+
+class EveryoneExpr(PlayersExpr):
+    pass
+
+class EveryoneElseExpr(PlayersExpr):
+    pass
+
+class NobodyExpr(PlayersExpr):
+    pass
+
+class AnyoneExpr(PlayerExpr):
+    pass
+
+class AnyoneElseExpr(PlayerExpr):
     pass
 
 
@@ -364,7 +533,13 @@ class RepeatStmt(Stmt):
 @dataclass
 class YouMayStmt(Stmt):
     path_1 : Stmts
-    path_2 : Optional[Stmts] = None
+    path_2 : Optional[Stmts] = Stmts([])
+
+
+@dataclass
+class TransferStmt(Stmt):
+    cards: CardsExpr
+    dest: PlayerZoneExpr
 
 
 @dataclass
@@ -375,3 +550,36 @@ class ReturnStmt(Stmt):
 class MeldStmt(Stmt):
     cards: CardsExpr
 
+@dataclass
+class TuckStmt(Stmt):
+    cards: CardsExpr
+
+@dataclass
+class SplayDirection(Expr):
+    direction: Optional[structs.Splay]
+
+
+# TODO: consider restructuring
+# this is a handy little product type, but
+# i'm not sure we need it
+
+@dataclass
+class PlayersFeatureExpr(Generic[F], Expr):
+    players: PlayersExpr
+    feature: F
+
+# CHECKME
+@dataclass
+class AnySplayedColorExpr(Choice, ColorExpr):
+    player: PlayerExpr
+    direction: SplayDirection
+
+@dataclass
+class SplayStmt(Stmt):
+    player: PlayersExpr
+    color: ColorsExpr
+    direction: SplayDirection
+
+@dataclass
+class SpecialAchieveStmt(Stmt):
+    name: CardNameExpr

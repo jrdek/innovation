@@ -1,4 +1,5 @@
 ### <1>
+### <1>
 Writing ([1] Blue) {
     Hex
     Idea Idea Crown
@@ -74,15 +75,19 @@ Tools ([1] Blue) {
     Shared (Idea) {
         you may {
             return three cards from your hand
-            draw a [3]
-            meld it
+            if you do {
+                draw a [3]
+                meld it
+            }
         }
     }
 
     Shared (Idea) {
         you may {
             return a [3] from your hand
-            draw three [1]
+            if you do {
+                draw three [1]
+            }
         }
     }
 }
@@ -94,8 +99,10 @@ Oars ([1] Red) {
 
     Demand (Castle) {
         transfer a card with a Crown from your hand to my score pile
-        draw a [1]
-        repeat this effect
+        if you do {
+            draw a [1]
+            repeat this effect
+        }
     }
 
     Shared (Castle) {
@@ -113,8 +120,10 @@ CodeOfLaws ([1] Purple) {
     Shared (Crown) {
         you may {
             tuck a card s.t. (any of the cards on your board are its color) from your hand
-            you may {
-                splay your cards of its color left
+            if you do {
+                you may {
+                    splay your cards of its color left
+                }
             }
         }
     }
@@ -158,8 +167,10 @@ Pottery ([1] Blue) {
     Shared (Leaf) {
         you may {
             return up to three cards from your hand
-            draw a [# them]
-            score it
+            if you do {
+                draw a [# them]
+                score it
+            }
         }
     }
 
@@ -176,8 +187,10 @@ Agriculture ([1] Yellow) {
     Shared (Leaf) {
         you may {
             return a card from your hand
-            draw a [its value plus one]
-            score it
+            if you do {
+                draw a [its value plus one]
+                score it
+            }
         }
     }
 }
@@ -192,26 +205,8 @@ Clothing ([1] Green) {
     }
 
     Shared (Leaf) {
-        if (any of the cards on your board are Red) and not (any of the cards on anyone else's board are Red) {
-            draw a [1]
-            score it
-        }
-        if (any of the cards on your board are Yellow) and not (any of the cards on anyone else's board are Yellow) {
-            draw a [1]
-            score it
-        }
-        if (any of the cards on your board are Green) and not (any of the cards on anyone else's board are Green) {
-            draw a [1]
-            score it
-        }
-        if (any of the cards on your board are Blue) and not (any of the cards on anyone else's board are Blue) {
-            draw a [1]
-            score it
-        }
-        if (any of the cards on your board are Purple) and not (any of the cards on anyone else's board are Purple) {
-            draw a [1]
-            score it
-        }
+        draw (# colors on only your board) [1]
+        score them
     }
 }
 
@@ -223,7 +218,9 @@ CityStates ([1] Purple) {
     Demand (Crown) {
         if # Castles on your board is at least four {
             transfer a top card with a Castle from your board to my board
-            draw a [1]
+            if you do {
+                draw a [1]
+            }
         }
     }
 }
