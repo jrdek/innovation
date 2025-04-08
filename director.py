@@ -169,6 +169,9 @@ class Director():
         self.run_initial_melds()
 
         while self.state.winner is None:
+            if self.debug[DFlags.GAME_LOG]:
+                if not self.is_second_action:
+                    print(f"Now it's Player {self.active_player+1}'s turn.")
             # the active player chooses an action
             # TODO: specialize this type...
             
@@ -187,9 +190,6 @@ class Director():
                 self.active_player = (self.active_player + 1) % len(self.player_agents)
             
             self.is_second_action = not self.is_second_action
-            if self.debug[DFlags.GAME_LOG]:
-                if not self.is_second_action:
-                    print(f"Now it's Player {self.active_player+1}'s turn.")
 
         if self.debug[DFlags.GAME_LOG]:
             print(f"Player {self.state.winner + 1} wins!")

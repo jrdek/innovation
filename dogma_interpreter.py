@@ -34,8 +34,8 @@ class DogmaInterpreter():
         if self.state.debug[DFlags.GAME_LOG]:
             print(f"\tIt's a shared effect. Player {self.me_id+1} has {my_icon_count} {deffect.key_icon}.")
         for _ in range(num_players):
-            your_icon_count = self.state.players[self.me_id].count_icon(deffect.key_icon)
-            if my_icon_count >= your_icon_count:
+            your_icon_count = self.state.players[self.you_id].count_icon(deffect.key_icon)
+            if your_icon_count >= my_icon_count:
                 if self.state.debug[DFlags.GAME_LOG]:
                     if self.you_id != self.me_id:
                         print(f"\t\tPlayer {self.you_id+1} has {your_icon_count} {deffect.key_icon}, so it can share.")  # TODO: better pretty-printing here
