@@ -18,6 +18,7 @@ import structs
 import lark
 from collections.abc import Callable
 from frozenlist import FrozenList
+from structs import GameState, GameStateTransition
 
 
 # If something is an instance of Choice, then the interpreter
@@ -311,6 +312,9 @@ class PointsExpr(NumberExpr):
 class NumberLiteralExpr(NumberExpr):
     number: int
 
+    def interp(self, di) -> int:
+        return di.interp_numberliteralexpr(self)
+
 
 @dataclass
 class IconLiteralExpr(IconExpr):
@@ -409,10 +413,9 @@ class ComparisonExpr(BoolExpr):
     thing_2: NumberExpr
 
 
-# intuition: eval quantifier(set of players who transferred cards)
 @dataclass
-class CardsWereTransferredExpr(BoolExpr):
-    actor: PlayersExpr
+class DemandHadEffectExpr(BoolExpr):
+    desired: bool  # expr evals to True iff (whether an effect happened) == desired
 
 
 @dataclass
@@ -534,8 +537,13 @@ class MyChoiceOfCardExpr(CardExpr, Choice):
 
 @dataclass
 class DrawStmt(Stmt):
-    amount: Union[NumberExpr, ChooseUpToNumberExpr]  # how many cards?
+    amount: NumberExpr  # how many cards?
     age: NumberExpr  # what age?
+
+    def interp(self, di) -> GameState:
+        return di.interp_drawstmt(self)
+
+
 
 class DrawAndFriendlyStmtName(Enum):
     MELD = auto()
@@ -562,7 +570,7 @@ class TuckStmt(Stmt):
 @dataclass
 class DrawAndStmt(Stmt):
     then: DrawAndFriendlyStmtName
-    amount: Union[NumberExpr, ChooseUpToNumberExpr]
+    amount: NumberExpr
     age: NumberExpr
 
 
@@ -583,6 +591,16 @@ class IfElseStmt(Stmt):  # TODO: consider inheritance?
     condition: BoolExpr
     then_do: Stmts
     else_do: Stmts
+
+    def func(self) -> GameStateTransition:
+        def execute_a_path(cur_state: GameState) -> GameState:
+            if self.condition.eval(cur_state):
+                return self.then_do.func()(cur_state)
+            else:
+                return self.else_do.func()(cur_state)
+        
+        return execute_a_path
+
 
 class RepeatStmt(Stmt):
     pass

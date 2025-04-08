@@ -41,8 +41,8 @@ _nonpunc_grammatical_stmts: _stmt
     | _stmts_then_stmt 
     | _stmt_and_then_stmt
 nonpunc_grammatical_stmts: _nonpunc_grammatical_stmts
-_grammatical_shared_stmts: nonpunc_grammatical_stmts "."
-_grammatical_demand_stmts: nonpunc_grammatical_stmts "!"
+_grammatical_shared_stmts: _nonpunc_grammatical_stmts "."
+_grammatical_demand_stmts: _nonpunc_grammatical_stmts "!"
 
 shared_stmts: _grammatical_shared_stmts+
     | "{" (_stmt _SHARED_SEP? "\n")+ "}"

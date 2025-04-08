@@ -7,8 +7,7 @@ This is broadly inspired by languages like Inform 7.
 """
 from typing import List
 from lark import Lark, Transformer
-from game_state import Color, Icon
-from game_state import Card
+from structs import Color, Icon, Card
 from dogma_ir import DogmaTransformer
 import os
 
@@ -35,15 +34,16 @@ def get_cards_from_path(path : str) -> List[Card]:
     cards_in_ir : List[Card] = []
     clear_terminal()
     for i, card in enumerate(syntax_tree.children):
-        print(card.pretty())
-        print("-----\n")
+        #print(card.pretty())
+        #print("-----\n")
         new_card = ir_maker.transform(card)
-        print(new_card.detailed_str())
-        input(f'(Cards shown: {i+1}/{len(syntax_tree.children)})')
+        # print(new_card.detailed_str())
+        # input(f'(Cards shown: {i+1}/{len(syntax_tree.children)})')
         clear_terminal()
         cards_in_ir.append(new_card)
 
-    for card in cards_in_ir:
-        print(card.detailed_str())
-    input("(press any key...)")
+    #for card in cards_in_ir:
+        #print(card.detailed_str())
+    print(f"Loaded {len(cards_in_ir)} cards.")
+    #input("(press any key...)")
     return cards_in_ir

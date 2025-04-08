@@ -1,13 +1,4 @@
 ### <1>
-Writing ([1] Blue) {
-    Hex
-    Idea Idea Crown
-
-    (Idea)
-    Draw a [2].
-}
-
-
 Sailing ([1] Green) {
     Crown
     Crown Hex Leaf
@@ -17,41 +8,12 @@ Sailing ([1] Green) {
 }
 
 
-TheWheel ([1] Green) {
-    Hex
-    Castle Castle Castle
-
-    (Castle)
-    Draw two [1].
-}
-
-
 Archery ([1] Red) {
     Castle
     Idea Hex Castle
 
     (Castle)
     I DEMAND you draw a [1], then transfer the highest card in your hand to my hand!
-}
-
-
-Domestication ([1] Yellow) {
-    Castle
-    Crown Hex Castle
-
-    (Castle)
-    Meld the lowest card in your hand.
-    Draw a [1].
-}
-
-
-Metalworking ([1] Red) {
-    Castle
-    Castle Hex Castle
-
-    (Castle)
-    Draw and reveal a [1].
-    If it has a Castle, score it and repeat this dogma effect.
 }
 
 
@@ -154,4 +116,42 @@ CityStates ([1] Purple) {
     (Crown)
     I DEMAND you transfer a top card with a Castle from your board to my board if (# Castles on your board) is at least four!
     If you do, draw a [1]!
+}
+
+
+Domestication ([1] Yellow) {
+    Castle
+    Crown Hex Castle
+
+    (Castle)
+    Meld the lowest card in your hand.
+    Draw a [1].
+}
+
+
+TheWheel ([1] Green) {
+    Hex
+    Castle Castle Castle
+
+    (Castle)
+    Draw two [1].
+}
+
+
+Writing ([1] Blue) {
+    Hex
+    Idea Idea Crown
+
+    (Idea)
+    Draw a [2].
+}
+
+
+Metalworking ([1] Red) {
+    Castle
+    Castle Hex Castle
+
+    (Castle)
+    Draw and reveal a [1].
+    If it has a Castle, score it and repeat this dogma effect.
 }

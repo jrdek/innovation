@@ -547,9 +547,11 @@ class DogmaTransformer(Transformer):
     def everyone_elses(self, _) -> PlayersExpr:
         return EveryoneElseExpr()
 
-    def any_cards_transferred(self, children) -> CardsWereTransferredExpr:
-        actor = children[0]
-        return CardsWereTransferredExpr(actor)
+    def demand_had_an_effect(self, _) -> DemandHadEffectExpr:
+        return DemandHadEffectExpr(True)
+    
+    def demand_had_no_effect(self, _) -> DemandHadEffectExpr:
+        return DemandHadEffectExpr(False)
 
     def cards_are_color(self, children) -> CardsAreLikeExpr:
         quantifier = AllQuantifier()
@@ -671,9 +673,6 @@ class DogmaTransformer(Transformer):
 
     
     def nonpunc_grammatical_stmts(self, children) -> Stmts:
-        return Stmts(children)
-
-    def stmts(self, children) -> Stmts:
         return Stmts(children)
     
     def demand_stmts(self, children) -> Stmts:

@@ -1,9 +1,6 @@
-from game_state import *
 import dataclasses as dc
 from typing import List, Set, Union, Deque, Type
-from collections.abc import Callable
-from functools import partial
-from inspect import signature
+from structs import *
 
 """
 When a player melds a card from their hand, two things happen "at once":
@@ -17,28 +14,6 @@ consider the legality of a move.
 All functions which impact gameplay take a GameState as an argument, then construct and
 return the state which results from taking a given action. (i.e., they're all pure!)
 """
-
-
-# TODO: What's a better type signature for this?
-def apply_funcs(t : any, fs : List[Callable]) -> any:
-    for f in fs:
-        t = f(t)
-    return t
-
-
-# decorator to assume that a function is partial if not all args
-# are supplied.
-# NOTE: this might break if func uses *args/**kwargs
-def assume_partial(func):
-    num_params = len(signature(func).parameters)
-    def wrapper(*args):
-        if len(args) < num_params:
-            # TODO: is this bad?
-            subfunc = assume_partial(partial(func, *args))
-            return subfunc
-        else:
-            return func(*args)  # throws error if too many args
-    return wrapper
 
 
 # TODO: Check that all of these are deep-copying
@@ -57,7 +32,7 @@ def add_card_to_deque(tuck : bool, d : Deque[Card], card : Card) -> Deque[Card]:
 
 @assume_partial
 def add_card_to_pile(tuck : bool, pi : Pile, card : Card) -> Pile:
-    new_deque = add_card_to_deque(tuck, deque(pi), card)
+    new_deque = add_card_to_deque(tuck, deque(pi.cards), card)
     return dc.replace(pi, cards=new_deque)
 
 

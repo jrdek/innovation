@@ -11,7 +11,7 @@ def select_turn_draw(state : GameState, pid : int) -> int:
     board = state.players[pid].board
     for color in Color:
         if len(board[color]) > 0:
-            top_age = board[color][-1].age
+            top_age = board[color].top().age
             turn_draw = max(top_age, turn_draw)
     return turn_draw
 
@@ -36,8 +36,8 @@ def draw_n(state : GameState, pid : int, age : int) -> GameState:
         drawn_str = f"[{old_age}]"
         if age != old_age:
             drawn_str += f" (--> [{age}])"
-        print(f"ACTION: Player {pid+1} draws a {drawn_str}:")
-        print(f"    {drawn_card}")
+        print(f"\t\tPlayer {pid+1} draws a {drawn_str}:")
+        print(f"\t\t\t{drawn_card}")
 
     return apply_funcs(state,
         [
@@ -58,7 +58,7 @@ def do_turn_draw(state : GameState, pid : int) -> GameState:
 # 2. Meld a card from their hand.
 def meld_from_hand(state : GameState, pid : int, card : Card) -> GameState:
     if state.debug[DFlags.GAME_LOG]:
-        print(f"ACTION: Player {pid+1} melds {card} from their hand.")
+        print(f"Player {pid+1} melds {card} from their hand.")
     return apply_funcs(state,
         [
             remove_card_from_player_hand(card, pid),
@@ -77,22 +77,3 @@ def achieve(state : GameState, pid : int) -> GameState:
             remove_top_public_achievement
         ]
     )
-
-
-# 4. Use the top dogma effect on one of their piles.
-def use_dogma(state : GameState, pid : int, card_name : str) -> GameState:
-    # locate the card by name.
-    card : Card = None
-    board = state.players[pid].board
-    for color in Color:
-        if len(board[color]) > 0:
-            if board[color][-1].name == card_name:
-                card = board[color][-1]
-    if card is None:
-        raise Exception(f"Player {pid} doesn't have {card_name} on their board")
-    
-    # TODO: implement (this is a placeholder)
-    if state.debug[DFlags.GAME_LOG]:
-        print(f"ACTION: Player {pid+1} used the dogma for {card}:")
-        print(f"    [[UNIMPLEMENTED]]")
-    return state 

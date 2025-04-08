@@ -1,12 +1,49 @@
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import List, Dict
+from typing import List, Dict, TypeVar, Deque, Optional
 from dataclasses import dataclass
+from collections.abc import Callable
+from functools import partial
+from inspect import signature
+from debug_handler import DFlags, DebugHandler
+from collections import Counter, deque
 
 class StrEnum(Enum):
     def __str__(self):
         return self.name
+
+
+# TODO: What's a better type signature for this?
+def apply_funcs(t : any, fs : List[Callable]) -> any:
+    for f in fs:
+        t = f(t)
+    return t
+
+
+# decorator to assume that a function is partial if not all args
+# are supplied.
+# NOTE: this might break if func uses *args/**kwargs
+def assume_partial(func):
+    num_params = len(signature(func).parameters)
+    def wrapper(*args):
+        if len(args) < num_params:
+            # TODO: is this bad?
+            subfunc = assume_partial(partial(func, *args))
+            return subfunc
+        else:
+            return func(*args)  # throws error if too many args
+    return wrapper
+
+
+T = TypeVar("T")
+
+
+class TurnAction(StrEnum):
+    DRAW = auto()
+    MELD = auto()
+    DOGMA = auto()
+    ACHIEVE = auto()
 
 
 class Color(StrEnum):
@@ -119,3 +156,108 @@ class Card:
 
     def __str__(self) -> str:
         return f"<{card_colors[self.color]}[{self.age}] {self.name}{color_end}>"
+
+
+@dataclass
+class SpecialAchievement:
+    name : str
+    meets_cond : Callable[[GameState, int], bool]
+    # special achievements don't need to know who owns them
+
+
+# NOTE: Initially, Pile inherited from deque.
+# It ended up being a bit easier to just have the container of cards be a field
+# which is accessed transparently via __getitem__ and __contains__.
+# TODO: Think more about this choice.
+@dataclass
+class Pile:
+    cards : Deque[Card]
+    splay : Splay
+    
+    def __contains__(self, item) -> bool:
+        return item in self.cards
+
+    def __len__(self) -> int:
+        return len(self.cards)
+    
+    def top(self) -> Card:
+        return self.cards[-1]
+    
+    def bottom(self) -> Card:
+        return self.cards[0]
+
+    def count_icon(self, targ_icon : Icon) -> int:
+        # FIXME this is broken probably
+        total : int = 0
+        for card_no, card in enumerate(self.cards):
+            if card_no == len(self.cards)-1:
+                total += card.icons.count(targ_icon)
+            else:
+                total += len([card.icons[i] for i in splay_indices[self.splay] if card.icons[i] is targ_icon]) 
+        return total
+    
+
+def get_empty_PlayerState() -> PlayerState:
+    return PlayerState(
+        hand=[],
+        scored_cards=[],
+        achieved_cards=[],
+        special_achievements=[],
+        board=get_empty_board()
+    )
+
+
+def get_empty_board() -> Dict[Color, Pile]:
+    return {color: Pile(deque(), Splay.NONE) for color in Color}
+
+
+# A PlayerState is a full-detail snapshot of a player's hand/board/etc.
+@dataclass
+class PlayerState:
+    hand : List[Card]
+    scored_cards : List[Card]
+    achieved_cards : List[Card]
+    special_achievements : List[SpecialAchievement]
+    board : Dict[Color, Pile]
+
+    def count_achievements(self) -> int:
+        return len(self.achieved_cards)
+    
+    def count_score(self) -> int:
+        return sum(card.age for card in self.scored_cards)
+    
+    def get_score_profile(self) -> Counter[int]:
+        return Counter([card.age for card in self.scored_cards])
+    
+    def count_icon(self, targ_icon : Icon) -> int:
+        return sum(pile.count_icon(targ_icon) for pile in self.board.values())
+    
+    def get_top_cards(self) -> List[Card]:
+        out = []
+        for color in Color:
+            if len(self.board[color]) > 0:
+                out.append(self.board[color].top())
+        return out
+
+
+
+@dataclass
+class GameState:
+    players : List[PlayerState]
+    decks : List[Deque[Card]]  # NOTE that this does not extend to expansion draw rules!
+    achievements : List[Card]
+    special_achievements : List[SpecialAchievement]
+    winner : Optional[int]
+    debug : DebugHandler
+
+
+GameStateTransition = Callable[[GameState], GameState]
+
+
+# util function to sort a list of cards into appropriate decks.
+# TODO: where should this go? maybe not this file...
+def build_decks(all_cards : List[Card]) -> List[Deque[Card]]:
+    decks = [[] for _ in range(11)]  # the 0 deck should always be empty
+    for card in all_cards:
+        decks[card.age].append(card)
+    return decks

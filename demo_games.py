@@ -2,20 +2,37 @@ from director import Director
 import player_agents
 from debug_handler import DFlags
 
-
+# TODO: flexible framework for setting up deterministic games
 def demo_game_1():
-    # demo game: the only cards loaded are Tools[1] and Calendar[2].
-    # players aren't dealt cards initially (unlike the real game).
-    script_p1 = [
-        "draw",                       # draws Tools, 
-        "meld Tools", "dogma Tools"   # melds and then dogma's Tools (TODO)
-    ]
+    """
+    Game description:
+        Two players.
+        Loaded cards: all the [1]s.
+
+        Player 1 draws Writing and Metalworking; it melds Writing.
+        Player 2 draws The Wheel and Domestication; it melds The Wheel.
+        So Player 2 goes first.
+
+        For Player 2's only action, it dogmas The Wheel.
+            This is a shared action, but Player 1 doesn't have enough castles to share.
+            Player 2 draws two [1]s.
+        
+        Now it's Player 1's turn.
+        For its first action, it draws a card (a [1]).
+        For its second action, it dogmas Writing.
+        There are no [2]s (or anything higher), so Player 1 tries to draw an 11, ending the game and winning.
+    """
+    script_p1 = '\n'.join([
+        "Writing",
+        "draw",
+        "dogma Writing"
+    ])
     p1 = player_agents.ScriptedAgent(script_p1)
 
-    script_p2 = [
-        "draw", "meld Calendar",         # draws Calendar, then melds it
-        "draw"                          # wins the game in action 1 by trying to draw an 11
-    ]
+    script_p2 = '\n'.join([
+        "TheWheel",  # initial meld
+        "dogma TheWheel"
+    ])
     p2 = player_agents.ScriptedAgent(script_p2)
 
     players = [p1, p2]
