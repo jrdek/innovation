@@ -1,12 +1,10 @@
 ### <1>
-### <1>
 Writing ([1] Blue) {
     Hex
     Idea Idea Crown
 
-    Shared (Idea) {
-        draw a [2]
-    }
+    Shared (Idea):
+        Draw a [2].
 }
 
 
@@ -14,10 +12,8 @@ Sailing ([1] Green) {
     Crown
     Crown Hex Leaf
 
-    Shared (Crown) {
-        draw a [1]
-        meld it
-    }
+    Shared (Crown):
+        Draw and meld a [1].
 }
 
 
@@ -25,9 +21,8 @@ TheWheel ([1] Green) {
     Hex
     Castle Castle Castle
 
-    Shared (Castle) {
-        draw two [1]
-    }
+    Shared (Castle):
+        Draw two [1].
 }
 
 
@@ -37,7 +32,7 @@ Archery ([1] Red) {
 
     Demand (Castle) {
         draw a [1]
-        transfer the highest card from your hand to my hand
+        transfer the highest card in your hand to my hand
     }
 }
 
@@ -58,12 +53,12 @@ Metalworking ([1] Red) {
     Castle Hex Castle
 
     Shared (Castle) {
-        draw a [1]
-        reveal it
+        draw and reveal a [1]
         if it has a Castle {
             score it
             repeat this effect
         }
+        # otherwise, keep it (implicit)
     }
 }
 
@@ -73,21 +68,16 @@ Tools ([1] Blue) {
     Idea Idea Castle
 
     Shared (Idea) {
-        you may {
-            return three cards from your hand
-            if you do {
-                draw a [3]
-                meld it
-            }
+        you may return three cards from your hand
+        if you do {
+            draw and meld a [3]
         }
     }
 
     Shared (Idea) {
-        you may {
-            return a [3] from your hand
-            if you do {
-                draw three [1]
-            }
+        you may return a [3] from your hand
+        if you do {
+            draw three [1]
         }
     }
 }
@@ -118,13 +108,9 @@ CodeOfLaws ([1] Purple) {
     Crown Crown Leaf
 
     Shared (Crown) {
-        you may {
-            tuck a card s.t. (any of the cards on your board are its color) from your hand
-            if you do {
-                you may {
-                    splay your cards of its color left
-                }
-            }
+        you may tuck a card s.t. (any of the cards on your board are its color) from your hand
+        if you do {
+            you may splay your cards of its color left
         }
     }
 }
@@ -151,7 +137,7 @@ Masonry ([1] Yellow) {
 
     Shared (Castle) {
         you may {
-            meld any number of cards from your hand
+            meld any number of cards with a Castle from your hand
         }
         if (# them) is at least four {
             claim the Monument special achievement
@@ -165,12 +151,10 @@ Pottery ([1] Blue) {
     Leaf Leaf Leaf
 
     Shared (Leaf) {
-        you may {
-            return up to three cards from your hand
-            if you do {
-                draw a [# them]
-                score it
-            }
+        you may return up to three cards from your hand
+        if you do {
+            draw a [# them]
+            score it
         }
     }
 
@@ -185,12 +169,10 @@ Agriculture ([1] Yellow) {
     Leaf Leaf Leaf
 
     Shared (Leaf) {
-        you may {
-            return a card from your hand
-            if you do {
-                draw a [its value plus one]
-                score it
-            }
+        you may return a card from your hand
+        if you do {
+            draw a [its value plus one]
+            score it
         }
     }
 }
@@ -216,7 +198,7 @@ CityStates ([1] Purple) {
     Crown Crown Crown
 
     Demand (Crown) {
-        if # Castles on your board is at least four {
+        if (# Castles on your board) is at least four {
             transfer a top card with a Castle from your board to my board
             if you do {
                 draw a [1]
@@ -232,10 +214,10 @@ RoadBuilding ([2] Red) {
     Castle Hex Castle
 
     Shared (Castle) {
-        meld a card from your hand
-        you may {
-            meld a card from your hand
-            transfer your top Red card to some player's board
+        meld a card from your hand  # meld one...
+        you may meld a card from your hand  # ... or two.
+        if you do {  # if you melded two:
+            transfer your top Red card to someone's board
             transfer their top Green card to your board
         }
     }
@@ -439,7 +421,7 @@ Feudalism ([3] Purple) {
     Shared (Castle) {
         you may {
             splay your Yellow cards left
-        } or {
+            or
             splay your Purple cards left
         }
     }
@@ -537,8 +519,9 @@ Optics ([3] Red) {
         if it has a Crown {
             draw a [4]
             score it
-        } else {
-            transfer a card from your score pile to some player s.t. (their score is below your score)'s score pile
+        } 
+        otherwise {
+            transfer a card from your score pile to someone else s.t. (their score is below your score)'s score pile
         }
     }
 }
@@ -735,7 +718,9 @@ Societies ([5] Purple) {
 
     Demand (Crown) {
         transfer a card s.t. ((# Ideas on my top card of its color) is below (# Ideas on it)) from your board to my board
-        draw a [5]
+        if you do {
+            draw a [5]
+        }
     }
 }
 
@@ -1376,7 +1361,7 @@ Fission ([9] Red) {
     }
 
     Shared (Clock) {
-        return a top card other than Fission from anyone's board
+        return a top card other than Fission from someone's board
         draw a [10]
     }
 }
@@ -1572,7 +1557,7 @@ Bioengineering ([10] Blue) {
     Clock Clock Hex
     
     Shared (Clock) {
-        transfer a top card with a Leaf from anyone else's board to your score pile
+        transfer a top card with a Leaf from someone else's board to your score pile
     }
 
     Shared (Clock) {

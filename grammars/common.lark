@@ -2,11 +2,11 @@
 // I would like "castles" to be different from "Castles",
 // but I don't care about case for colors...
 
-red: "Red"
-yellow: "Yellow"
-green: "Green"
-blue: "Blue"
-purple: "Purple"
+red: "Red" | "red"
+yellow: "Yellow" | "yellow"
+green: "Green" | "green"
+blue: "Blue" | "blue"
+purple: "Purple" | "purple"
 base_color: red | yellow | green | blue | purple
 
 
@@ -20,7 +20,7 @@ hex: "Hex" | "Hexes"
 icon: castle | factory | clock | crown | leaf | idea | hex
 
 zero: "zero"
-one: "a" | "an" | "one"
+one: "a" | "an" | "one" | "another"
 two: "two"
 three: "three"
 four: "four"

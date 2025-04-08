@@ -4,7 +4,6 @@ from enum import Enum, auto
 from typing import List, Dict
 from dataclasses import dataclass
 
-
 class StrEnum(Enum):
     def __str__(self):
         return self.name
@@ -95,6 +94,7 @@ class DEffect:
                 s += INDENT + line + "\n"
         return s
 
+Dogma = List[DEffect]
 
 @dataclass
 class Card:

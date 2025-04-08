@@ -102,8 +102,10 @@ class Stmts(IRTreeNode, FrozenList[Stmt]):  # TODO: This is breaking some or oth
                 else structs.colored_str(stmt.pretty(), structs.Color.RED) 
                 for stmt in self]
     
+    def pretty(self):
+        return self.__str__
+
     def __str__(self):
-        input(len(self))
         if len(self) == 0:
             return "[]"
         return '\n'.join(str(stmt) for stmt in self)
@@ -142,6 +144,9 @@ class BoolExpr(Expr):
 class SuccessExpr(BoolExpr):
     pass
 
+class OnlyYouHaveAllColorsExpr(BoolExpr):
+    pass
+
 # type which maps Ts to bools; basically a predicate on Ts
 class BoolFunc(IRTreeNode, Generic[T]):
     pass
@@ -157,6 +162,9 @@ class NumberExpr(NumbersExpr):
 class AllNumberExpr(NumberExpr):
     pass
 
+@dataclass
+class AllButNumberExpr(NumberExpr):
+    num: NumberExpr
 
 class IconsExpr(CountableExpr, CardFeature):
     pass
@@ -217,6 +225,11 @@ class OtherOnesExpr(ReferentExpr):
 class ChosenOnesExpr(ReferentExpr):
     pass
 
+
+# FIXME: "their" is totally a referent, but only to players...
+class ThemExpr(PlayerExpr):
+    pass
+
 class DemocracyRecordExpr(NumberExpr):
     pass
 
@@ -256,6 +269,7 @@ class HighestSuperlative(Superlative):
 class LowestSuperlative(Superlative):
     pass
 
+@dataclass
 class ExtremeValueExpr(NumberExpr):
     superlative: Superlative
     zone: PlayerZoneExpr
@@ -264,10 +278,11 @@ class ColorsOnOnlyYourBoardExpr(ColorsExpr):
     pass
 
 # How many of which cards are we selecting?
+# (FIXME: kw_only is a hack to allow subclasses with non-default args)
 @dataclass(kw_only=True)
 class ZonelessSelectionStrategy(IRTreeNode):
     num: NumberExpr = AllNumberExpr()
-    selection_lambda: Optional[SelectionLambda] = AnySelection()
+    selection_lambda: SelectionLambda = AnySelection()
 
 # From where?
 @dataclass
@@ -308,7 +323,7 @@ class ColorLiteralExpr(ColorExpr):
 
 
 @dataclass
-class UpToNumberExpr(NumberExpr, Choice):
+class ChooseUpToNumberExpr(NumberExpr, Choice):
     # user must choose how many, up to [num].
     upper_bound: NumberExpr
 
@@ -383,6 +398,9 @@ class BelowCompareOp(NumericCompareOp):
 class AtLeastCompareOp(NumericCompareOp):
     pass
 
+class EqualToCompareOp(NumericCompareOp):
+    pass
+
 
 @dataclass
 class ComparisonExpr(BoolExpr):
@@ -427,6 +445,14 @@ class ValuesOfCards(NumbersExpr):
 @dataclass
 class ColorsOfCards(ColorsExpr):
     cards: CardExpr
+
+@dataclass
+class ListOfColorsExpr(ColorsExpr):
+    colors: List[ColorExpr]
+
+@dataclass
+class ColorsOnPlayerBoardExpr(ColorsExpr):
+    player: PlayerExpr
 
 @dataclass
 class NamesOfCards(CardNamesExpr):
@@ -499,6 +525,8 @@ class AnyoneExpr(PlayerExpr):
 class AnyoneElseExpr(PlayerExpr):
     pass
 
+class ChooseSomeoneExpr(PlayerExpr, Choice):
+    pass
 
 class MyChoiceOfCardExpr(CardExpr, Choice):
     pass
@@ -506,34 +534,69 @@ class MyChoiceOfCardExpr(CardExpr, Choice):
 
 @dataclass
 class DrawStmt(Stmt):
-    amount: Union[NumberExpr, UpToNumberExpr]  # how many cards?
+    amount: Union[NumberExpr, ChooseUpToNumberExpr]  # how many cards?
     age: NumberExpr  # what age?
 
+class DrawAndFriendlyStmtName(Enum):
+    MELD = auto()
+    REVEAL = auto()
+    SCORE = auto()
+    TUCK = auto()
+
+@dataclass
+class MeldStmt(Stmt):
+    cards: CardsExpr
 
 @dataclass
 class RevealStmt(Stmt):
     card: CardExpr
 
+@dataclass
+class ScoreStmt(Stmt):
+    cards: CardsExpr
+
+@dataclass
+class TuckStmt(Stmt):
+    cards: CardsExpr
+
+@dataclass
+class DrawAndStmt(Stmt):
+    then: DrawAndFriendlyStmtName
+    amount: Union[NumberExpr, ChooseUpToNumberExpr]
+    age: NumberExpr
+
+
+
+@dataclass
+class ForStmt(Stmt):
+    countable: CountableExpr
+    count_by: NumberLiteralExpr
+    do: Stmts
 
 @dataclass
 class IfStmt(Stmt):
     condition: BoolExpr
     then_do: Stmts
 
-
 @dataclass
-class ScoreStmt(Stmt):
-    cards: CardsExpr
-
+class IfElseStmt(Stmt):  # TODO: consider inheritance?
+    condition: BoolExpr
+    then_do: Stmts
+    else_do: Stmts
 
 class RepeatStmt(Stmt):
     pass
 
 
 @dataclass
+class DoXOrYStmt(Stmt):
+    path_1: Stmts
+    path_2: Stmts
+
+
+@dataclass
 class YouMayStmt(Stmt):
-    path_1 : Stmts
-    path_2 : Optional[Stmts] = Stmts([])
+    stmts: Stmts
 
 
 @dataclass
@@ -547,16 +610,24 @@ class ReturnStmt(Stmt):
     cards: CardsExpr
 
 @dataclass
-class MeldStmt(Stmt):
+class NukeStmt(Stmt):
     cards: CardsExpr
 
+class EndDogmaActionStmt(Stmt):
+    pass
+
 @dataclass
-class TuckStmt(Stmt):
-    cards: CardsExpr
+class WinStmt(Stmt):
+    winner: PlayerExpr
+
+
+@dataclass
+class DogmaComboStmt(Stmt):
+    card: CardExpr
 
 @dataclass
 class SplayDirection(Expr):
-    direction: Optional[structs.Splay]
+    direction: Optional[structs.Splay]  # "None" means any direction
 
 
 # TODO: consider restructuring
@@ -572,6 +643,12 @@ class PlayersFeatureExpr(Generic[F], Expr):
 @dataclass
 class AnySplayedColorExpr(Choice, ColorExpr):
     player: PlayerExpr
+    direction: SplayDirection
+
+@dataclass
+class PileIsSplayedExpr(BoolExpr):
+    player: PlayerExpr
+    color: ColorExpr
     direction: SplayDirection
 
 @dataclass

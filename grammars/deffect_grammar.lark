@@ -10,15 +10,49 @@ card: card_name "([" num "]" base_color ")" "{" icons dogma "}"
 
 icons: icon~1..6
 
-dogma: dogma_effect+
+dogma: _dogma_effect+
 
-_age: "[" _value "]"
+_age: "[" _value "]" | _CARDS "of value" _value 
 
-dogma_effect: _effect_header stmts
+_dogma_effect: shared_dogma_effect | demand_dogma_effect
+shared_dogma_effect: _effect_header shared_stmts
+demand_dogma_effect: _effect_header _demand_header demand_stmts
 
-_effect_header: EFFECT_CLASS "(" icon ")"
+_effect_header: "(" icon ")"
 
-EFFECT_CLASS: "Shared" | "Demand"
+_demand_header: "I DEMAND you"
+
+// lol, this is all unnecessary but very cute
+// (it might even be too permissive... but I don't care as long as it's not ambiguous!)
+_SHARED_SEP: /[.;,]/
+_DEMAND_SEP: /[!;,]/
+_SEP: ";" | ","
+_SEP_THEN: ". Then" | ", then"
+_ENDING: /[!.]/
+
+_stmt_sep_stmts: _stmt _SEP _nonpunc_grammatical_stmts
+_stmt_and_stmt: _stmt _SEP? "and" _stmt
+_stmts_then_stmt: _nonpunc_grammatical_stmts _SEP_THEN _stmt
+_stmt_and_then_stmt: _stmt "and then" _stmt
+
+_nonpunc_grammatical_stmts: _stmt
+    | _stmt_sep_stmts 
+    | _stmt_and_stmt
+    | _stmts_then_stmt 
+    | _stmt_and_then_stmt
+nonpunc_grammatical_stmts: _nonpunc_grammatical_stmts
+_grammatical_shared_stmts: nonpunc_grammatical_stmts "."
+_grammatical_demand_stmts: nonpunc_grammatical_stmts "!"
+
+shared_stmts: _grammatical_shared_stmts+
+    | "{" (_stmt _SHARED_SEP? "\n")+ "}"
+    | _stmt
+
+demand_stmts: _grammatical_demand_stmts+
+    | "{" (_stmt _DEMAND_SEP? "\n")+ "}"
+    | _stmt
+
+_stmts: shared_stmts | demand_stmts
 
 // ARGS TO STATEMENTS
 
@@ -39,35 +73,50 @@ _general_zone: hand
     | board
     | top_cards
 
+_COPULA: "is" | "are"
+_COPULA_PAST: "was" | "were"
+
+// Rocketry [8] highlights an interesting nuance:
+// it lets you return n cards from *any* score piles,
+// not just one person's.
+// TODO: re-evaluate. should I stop being stubborn and just add for-loops
 my: "my"
+you: "you"
 your: "your"
-their: "their"
+their: "their" | "that player's"
+everyone: "everyone"
 everyones: "everyone's"
 everyone_elses: "everyone else's"
+anyone: "anyone"
 anyones: "anyone's"
 anyone_elses: "anyone else's"
-
-you: "you"
-anyone: "anyone"
+someone_else: "someone else"
+someone_elses: "someone else's" | "another player's"
+someone: "someone"
+someones: "someone's"
 nobody: "nobody" | "no-one"
-everyone: "everyone"
-someone: "some player"
 
-player: you
-    | "the player with" count_superlative _countable
+_winner: you | superlative_countable_player
 
-specific_players: someone ("s.t. (" condition ")")? "'s"
+superlative_countable_player: "the player with" count_superlative _countable
+
+specific_other_players: someone_else ("s.t. (" condition ")")? "'s"
 
 _player_adj: my
     | your
     | their
-    | specific_players
+    | someone_elses
+    | specific_other_players
     | everyones
     | anyones
     | everyone_elses
     | anyone_elses
+    | someones
 
 zone: _player_adj _general_zone 
+
+// note: this is strict!
+you_have_most_achievements: "you have the most achievements"
 
 strictly_most: "strictly most"
 strictly_fewest: "strictly fewest"
@@ -78,42 +127,54 @@ _val_superlative: highest | lowest
 count_superlative: strictly_most | strictly_fewest
 
 // how many of which cards?
-card_sel_lambda: sel_num_cards | sel_all_cards | range
+card_sel_lambda: sel_num_cards | sel_all_cards | sel_all_but_num_cards | _range
 
-sel_num_cards: "the" _val_superlative? range?  // TODO: This is too permissive! "draw the card from your hand..."
-sel_all_cards: "all the" _val_superlative? | "all" _val_superlative?
+sel_num_cards: "the"  _range? _val_superlative?  // TODO: This is too permissive! "draw the card from your hand..."
+sel_all_cards: "all" "the"? _val_superlative?
+sel_all_but_num_cards: "all but" _value
 
 _its_feature: its_color | its_value
-its_color: "its color"
-its_value: "its value"
+its_color: "its color" | "that color"
+its_value: "its value" | "that value"
 
 any_quant: "any of"
 all_quant: "all of"
-?quantifier: any_quant | all_quant  // TODO: redundant?
+none_quant: "none of"
+?quantifier: any_quant | all_quant | none_quant  // TODO: redundant?
 
 
-cards_are_color: quantifier? specific_cards ("is"|"are") _color_select 
+cards_are_color: quantifier? specific_cards _COPULA _color_select 
 cards_have_icon: quantifier? specific_cards ("has"|"have") "a" icon
+cards_are_at_least_age: quantifier? specific_cards _COPULA "of value" _age "or higher"
 card_is_in: card_name "is" _PREPOS zone
 // this is basically a bool: is property P of card c equal to x?
 // we don't use `_feature` because "the card has a Red" may be different
 // from "the card is Red", and "the card is Castle" is something else altogether
 ?card_is_like: cards_are_color
     | cards_have_icon
+    | cards_are_at_least_age
     | card_is_in
 
-chosen: "chosen"
+chosen: "what you chose"
 
 _color_select: its_color
     | base_color
+    | color_or_color
     | "(" _color_select ")"
 
 _actor: you | anyone | nobody | everyone
 
-any_cards_transferred: _actor "transferred any" _CARDS
-no_cards_transferred: _actor "transferred no" _CARDS
+any_cards_transferred: _actor "transferred any" _CARDS "due to the demand"
+// no_cards_transferred: _actor "transferred no" _CARDS
 
-_cards_transferred: any_cards_transferred | no_cards_transferred
+_ACTION_PAST: "transferred" | "returned" | "tucked"
+_ACTION_PARTICIPLE: "transferred" | "returned"
+_THIS_DEMAND: "this demand" | "the demand"
+_DUE_TO: "as a result of" | "due to"
+_cards_were_x_due_to_demand: _CARDS _COPULA_PAST _ACTION_PARTICIPLE _DUE_TO _THIS_DEMAND
+demand_had_an_effect: "any" _cards_were_x_due_to_demand
+demand_had_no_effect: "no" _cards_were_x_due_to_demand
+
 
 no: "no"
 any: "any"
@@ -124,7 +185,8 @@ only_you_have_all_colors: "only you have all colors"
 not_cond: "not" "(" condition ")"
 
 at_least: "at least"
-below: "below"
+below: "below" | "less than"
+equal_to: "equal_to"?
 
 score: "score"
 points: "points"
@@ -143,14 +205,14 @@ count: "#" _countable
 player_score: _player_adj score
 
 // CHECKME: _value plus _value, or _value plus num?
-sum: _value "plus" _value
+sum: _value "plus" _value | _value "higher than" _value
 product: _value "times" _value
 round_down_quotient: _value "divided by" _value
 round_up_quotient: _value "divided by" _value rounded_up
 _quotient: round_down_quotient | round_up_quotient
 _arithmetic: sum | product | _quotient
 
-extreme_value: _val_superlative "value" _PREPOS zone
+extreme_value: "the" _val_superlative ("value" | "card") _PREPOS zone
 
 _value: num
     | _feature_of_card
@@ -163,26 +225,32 @@ _value: num
     | extreme_value
     | "(" _value ")"  // sometimes it's nice to have parens for readability
 
-compare_op: at_least | below
+_compare_op: at_least | below | equal_to
 
-comparison: _player_adj? _value "is" compare_op? _value
+comparison: _player_adj? _value "is" _compare_op _value
 
 any_color: "any one color"  // TODO: what if I want to say "any two colors"?
+color_or_color: base_color "or" base_color
+one_color_of_cards_on_board: "one" "color of" "the"? _CARDS _PREPOS _player_adj "board"
 
 any_value: "any one value"
 
 players_color_cards: _player_adj _color_select _CARDS
 players_cards_of_feature: _player_adj _CARDS "of" _feature_of_card
 any_color_of_player_cards: any_color "of" _player_adj _CARDS
-any_already_splayed: any_color "of" _player_adj _CARDS "which is splayed" direction
+any_already_splayed_in_dir: any_color "of" _player_adj _CARDS "which is"? "currently"? "splayed" direction
+any_already_splayed_at_all: any_color "of" _player_adj _CARDS "which is"? "currently"? "splayed"
+_any_already_splayed: any_already_splayed_in_dir | any_already_splayed_at_all
 
 _player_color_cards: players_color_cards
     | players_cards_of_feature  // this had better be a color! FIXME
     | any_color_of_player_cards
-    | any_already_splayed
+    | _any_already_splayed
     | "(" _player_color_cards ")"
 
-pile_is_splayed: _player_color_cards "are splayed" direction?
+pile_is_splayed_in_direction: _player_color_cards "are splayed" direction?
+pile_is_splayed_at_all: _player_color_cards "are splayed"
+_pile_is_splayed: pile_is_splayed_at_all | pile_is_splayed_in_direction
 
 cond_or_cond: condition "or" condition
 
@@ -194,18 +262,22 @@ cond_and_cond: condition "and" condition
 // so we separate it here
 // a_certain_feature: same _feature | any_color | any_value
 // TODO: do we need same _feature???
-a_certain_feature: any_color | any_value
+
+_a_certain_feature: any_color | any_value | its_color | its_value
 
 value_is_superlative: _value "is" count_superlative
 
 you_do: "you do"
 
 ?condition: you_do
-    | _cards_transferred 
+    | demand_had_an_effect
+    | demand_had_no_effect
     | only_you_have_all_colors
-    | pile_is_splayed
+    | you_have_most_achievements
+    | _pile_is_splayed
     | card_is_like
     | comparison
+    | for_expr
     | value_is_superlative
     | not_cond
     | cond_or_cond
@@ -213,15 +285,19 @@ you_do: "you do"
     | "(" condition ")"
 
 it: "it" 
-them: "them"
+
+// NOTE that this is a little sketchy
+them: "them" | _CARDS "you" _ACTION_PAST
 
 _CARDS: /cards?/
 
-distinct_features: "distinct" _feature "s" _PREPOS (them | zone)
+_distinct: "distinct" | "different"
+distinct_features: _distinct _feature "s"? "of card"? _PREPOS (them | zone)
 
 
 value_str: "value"
 color_str: "color"
+
 _feature: value_str | color_str
 
 feature_of_cards: "the"? _feature "of" specific_cards
@@ -238,12 +314,21 @@ icons_in_zone: icon _PREPOS zone
 icons_among_cards: icon _PREPOS specific_cards
 _icon_countable: icons_in_zone | icons_among_cards
 
-colors_on_only_your_board: "colors on only your board"
+_COLOR_S: "color" "s"?
+colors_on_only_your_board: _COLOR_S " on only your board"  // TODO: generalize
+colors_in_zone_with_n_icons: _COLOR_S _PREPOS zone "with" num icon  // TODO: generalize to other features...
+your_colors_splayed_dir: _COLOR_S " you have splayed" direction
+your_colors_splayed_at_all: _COLOR_S "you have splayed"
+_your_colors_splayed: your_colors_splayed_dir | your_colors_splayed_at_all
+_color_countable: colors_on_only_your_board | colors_in_zone_with_n_icons | _your_colors_splayed
+
+player_countable: "player" "s"? // TODO add conditioning?
 
 _countable:  points  // (this is the only "numeric countable")
     | _card_countable
     | _icon_countable
-    | colors_on_only_your_board
+    | _color_countable
+    | player_countable
     | distinct_features
     | "(" _countable ")"
 
@@ -253,7 +338,7 @@ card_not_of_certain_color: "non-" base_color kind_of_card
 card_with_certain_icon: kind_of_card "with" "a" icon
 card_without_certain_icon: kind_of_card "without" "a" icon
 card_without_certain_name: kind_of_card "other than" card_name
-card_of_certain_feature: kind_of_card "of" a_certain_feature
+card_of_certain_feature: kind_of_card "of" _a_certain_feature
 card_at_loc_on_its_pile: _pile_loc kind_of_card
 card_not_at_loc_on_its_pile: "non-"_pile_loc kind_of_card
 
@@ -267,7 +352,7 @@ kind_of_card: card_at_loc_on_its_pile
     | card_without_certain_name
     | card_of_certain_feature
 
-the_other_one: "the other one"
+the_other_one: "the other one" | "the other"
 
 ?referent: it | them | chosen | the_other_one
 
@@ -278,15 +363,17 @@ _pile_loc: top | bottom
 
 _PREPOS: "from" | "in" | "on" | "among"
 
-?range: _value | up_to_value
+_range: _value | choose_up_to_value
 
-up_to_value: "up to" _value
+choose_up_to_value: "up to" _value
 
-my_choice_of_card: "the card I choose"
+my_choice_of_card: "the card I choose" | "the card of my choice"
 
 // FIXME: currently, you can syntactically specify "the top card from your hand"...
 selected_cards_from_some_pile: card_sel_lambda card_at_loc_on_its_pile
-selected_cards_from_player_pile: _player_adj selected_cards_from_some_pile
+the_card_at_loc_on_its_pile: card_at_loc_on_its_pile
+_card_or_cards_from_pile: selected_cards_from_some_pile | the_card_at_loc_on_its_pile
+selected_cards_from_player_pile: _player_adj _card_or_cards_from_pile
 
 selected_cards_general: card_sel_lambda kind_of_card
 selected_cards_conditioned: selected_cards_general "s.t." condition
@@ -304,24 +391,22 @@ selected_cards_from_player_zone: _selected_cards _PREPOS zone
     | my_choice_of_card
     | referent
 
-
-stmts: _stmt
-    | "{" (_stmt "\n")+ "}"
-
-
 // KINDS OF STATEMENTS
 
 _stmt: draw_stmt
-    | return_stmt
-    | transfer_stmt
     | meld_stmt
-    | for_colors_with_stmt
-    | if_stmt
-    | you_may_stmt
     | reveal_stmt
-    | repeat_stmt
     | score_stmt
     | tuck_stmt
+    | draw_and_stmt
+    | return_stmt
+    | reveal_and_return_stmt
+    | transfer_stmt
+    | _for_stmt
+    | _if_stmt
+    | do_x_or_y_stmt
+    | you_may_stmt
+    | repeat_stmt
     | exchange_stmt
     | splay_stmt
     | special_achieve_stmt
@@ -335,48 +420,95 @@ _stmt: draw_stmt
     | dogma_combo_stmt
 
 
-draw_stmt: "draw" range _age
+draw_stmt: "draw"i _range _age
 
-return_stmt: "return" specific_cards
+draw_and_stmt: "draw"i " and" _draw_and_friendly_action _range _age
+_draw_and_friendly_action: meld_str | reveal_str | score_str | tuck_str
+meld_str: "meld"
+reveal_str: "reveal"
+score_str: "score"
+tuck_str: "tuck"
 
-transfer_stmt: "transfer" specific_cards "to" zone
+meld_stmt: "meld"i specific_cards
 
-meld_stmt: "meld" specific_cards
+reveal_stmt: "reveal"i specific_cards
 
-splay_stmt: "splay" _player_color_cards direction
-    | "unsplay" _player_color_cards
+score_stmt: "score"i specific_cards
 
-score_stmt: "score" specific_cards
+tuck_stmt: "tuck"i specific_cards
 
-reveal_stmt: "reveal" specific_cards
 
-// NOTE: this is intentionally overprescribed. could be reworked, but I see no need yet
-for_colors_with_stmt: "for each color on your board with a" icon stmts
+return_stmt: "return"i specific_cards
 
-if_stmt: "if" condition stmts ("else" stmts)?
 
-you_may_stmt: "you may" stmts ("or" stmts)?
+_TO: "to" | "into" | "onto"
+_TRANSFER: "transfer"i | "take"i
+transfer_stmt: _TRANSFER specific_cards _TO zone
 
-repeat_stmt: "repeat this effect"
 
-tuck_stmt: "tuck" specific_cards
+reveal_and_return_stmt: "reveal"i " and return" specific_cards
 
-exchange_stmt: "exchange" specific_cards "with" specific_cards
 
-rearrange_stmt: "rearrange" _player_color_cards
+splay_stmt: "splay"i _player_color_cards "to the"? direction
+    | "unsplay"i _player_color_cards
 
-democracy_stmt: "set the democracy record"
 
-special_achieve_stmt: "claim the" card_name "special achievement"
 
-win_stmt: player "win" "s"?
 
-choose_features_stmt: "choose" _value _feature "s"?
 
-choose_card_stmt: "choose" specific_cards
+// // NOTE: this is intentionally overprescribed. could be reworked, but I see no need yet
+// for_colors_with_stmt: "for each color on your board with a" icon stmts
 
-nuke_stmt: "nuke" specific_cards
+_each: "every" | "each"
+_for_each: "for"i _each "of"?
 
-end_dogma_action_stmt: "end the dogma action"
+for_every_countable: _for_each _countable  // implicitly, n=1
+for_every_n_countables: _for_each num _countable
+_for_every_countable: for_every_countable | for_every_n_countables 
 
-dogma_combo_stmt: "dogma combo" 
+forward_for_stmt: _for_every_countable ","? _stmts
+backward_for_stmt: _stmts _for_every_countable
+_for_stmt: forward_for_stmt | backward_for_stmt
+
+for_expr: for_every_countable "(" condition ")"
+
+
+if_stmt_without_else: "if"i condition "," nonpunc_grammatical_stmts
+    | "if"i condition _stmts
+
+backwards_if_without_else: nonpunc_grammatical_stmts "if" condition
+
+if_stmt_with_else: "if"i condition "," _stmts "otherwise"i nonpunc_grammatical_stmts
+    | "if"i condition _stmts "otherwise"i _stmts
+
+_if_stmt: if_stmt_without_else | backwards_if_without_else | if_stmt_with_else
+
+_GRAMMAR_OR: "or" | ", or"
+do_x_or_y_stmt: nonpunc_grammatical_stmts _GRAMMAR_OR nonpunc_grammatical_stmts
+    | "either"i nonpunc_grammatical_stmts _GRAMMAR_OR nonpunc_grammatical_stmts
+
+you_may_stmt: "you"i " may" "choose to"? _stmts
+
+repeat_stmt: "repeat"i " this dogma effect"
+
+exchange_stmt: "exchange"i specific_cards "with" specific_cards
+
+rearrange_stmt: "rearrange"i "the order of" one_color_of_cards_on_board
+
+democracy_stmt: "set"i " the democracy record"
+
+special_achieve_stmt: "claim"i " the" card_name "achievement"
+
+win_stmt: _winner "win" "s"?
+
+choose_features_stmt: "choose"i _value _feature "s"?
+
+choose_card_stmt: "choose"i specific_cards
+
+nuke_stmt: "nuke"i specific_cards
+
+end_dogma_action_stmt: "end"i " the dogma action"
+
+its: "its"
+_that_cards: its | specific_cards "'s"
+dogma_combo_stmt: "execute"i "(but do not share) each of" _that_cards "non-demand dogma effects"
