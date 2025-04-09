@@ -4,21 +4,25 @@ from structs import T, TurnAction, Color, Icon, Card, GameState
 from enum import Enum
 
 # PlayerAgents are what make decisions.
-# TODO: an abstract base class here will be nice for debugging...
-
-
-
 class PlayerAgent(ABC):
+    name: str
+
     @abstractmethod
     def choose(self, state: GameState, bank: List[T], num_to_choose: int) -> List[T]:
         ...
 
+    @abstractmethod
+    def notify(self, state: GameState, cards: List[Card], owner: int):
+        ...
+
 
 class ScriptedAgent(PlayerAgent):
-    def __init__(self, script: str):
+    def __init__(self, name: str, script: str):
+        self.name: str = name
         self.script : List[str] = script.split()
         self.choice_num : int = 0
     
+
     def choose(self, state: GameState, bank: List[T], how_many: int) -> List[T]:
         assert len(bank) != 0  # (handled elsewhere)
         if self.choice_num >= len(self.script):
@@ -49,3 +53,9 @@ class ScriptedAgent(PlayerAgent):
             choices.append(chosen_object)
             self.choice_num += 1
         return choices
+    
+
+    def notify(self, state: GameState, cards: List[Card], owner: int):
+        # (dummy function, since this is scripted anyways)
+
+        print(f"\t\t\t<{self.name}: acknowledging that {state.players[owner].name}'s hand has [{', '.join(str(card) for card in cards)}]>")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import List, Dict, TypeVar, Deque, Optional
+from typing import List, Dict, TypeVar, Deque, Optional, Union
 from dataclasses import dataclass
 from collections.abc import Callable
 from functools import partial
@@ -147,6 +147,14 @@ class Card:
         if type(other) is not Card: return False
         return self.name == other.name
     
+    def __lt__(self, other):
+        if type(other) is not Card: return False
+        return self.age < other.age
+    
+    def __le__(self, other):
+        if type(other) is not Card: return False
+        return self.age <= other.age
+    
     def detailed_str(self) -> str:
         return \
         f"<{colored_str(f'[{self.age}] {self.name}', self.color)}>\n" + \
@@ -197,8 +205,9 @@ class Pile:
         return total
     
 
-def get_empty_PlayerState() -> PlayerState:
+def get_empty_PlayerState(name: str) -> PlayerState:
     return PlayerState(
+        name=name,
         hand=[],
         scored_cards=[],
         achieved_cards=[],
@@ -214,6 +223,7 @@ def get_empty_board() -> Dict[Color, Pile]:
 # A PlayerState is a full-detail snapshot of a player's hand/board/etc.
 @dataclass
 class PlayerState:
+    name: str
     hand : List[Card]
     scored_cards : List[Card]
     achieved_cards : List[Card]
@@ -252,6 +262,18 @@ class GameState:
 
 
 GameStateTransition = Callable[[GameState], GameState]
+CardProp = Callable[[Card], bool]
+CardsProp = Callable[[List[Card]], bool]
+CardLoc = Union[List[Card], Pile, Deque]
+PlayerId = int
+Age = int
+
+@dataclass
+class EvaluatedZonedSelectionStrategy:
+    num: int
+    selection_lambda: Callable[[List[T]], T]
+    pid: PlayerId
+    field: PlayerField
 
 
 # util function to sort a list of cards into appropriate decks.

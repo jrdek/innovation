@@ -398,7 +398,7 @@ class DogmaTransformer(Transformer):
         return LowestSuperlative()
 
     def sel_num_cards(self, children) -> ZonelessSelectionStrategy:
-        num, superlative = 1, AnySelection()
+        num, superlative = NumberLiteralExpr(1), AnySelection()
         if len(children) == 1:
             if isinstance(children[0], Superlative):
                 superlative = children[0]
@@ -605,7 +605,8 @@ class DogmaTransformer(Transformer):
         return TuckStmt(*children)
     
     def draw_and_stmt(self, children) -> DrawAndStmt:
-        return DrawAndStmt(*children)
+        then, amount, age = children
+        return DrawAndStmt(amount, age, then)
     
     def for_every_countable(self, children) -> Tuple[CountableExpr, NumberLiteralExpr]:
         return (children[0], NumberLiteralExpr(1))

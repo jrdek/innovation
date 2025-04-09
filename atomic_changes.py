@@ -41,7 +41,6 @@ def add_card_to_list(xs : List[Card], card : Card) -> List[Card]:
     return [*xs, card]
 
 
-CardLoc = Union[List[Card], Pile, Deque]
 
 
 @assume_partial
@@ -147,9 +146,9 @@ def add_card_to_global_achievements(card : Card, state : GameState) -> GameState
 ##### REMOVE A CARD FROM A ZONE #####
 # this is way, way simpler than adding
 
-def remove_card_from_loc(card : Card, dest : CardLoc) -> CardLoc:
-    if card not in dest:
-        raise ValueError("Card not found in "+str(dest))
+def remove_card_from_loc(dest : CardLoc, card: Card) -> CardLoc:
+    if all(destcard != card for destcard in dest):
+        raise ValueError(f"Card {card} not found in "+str(dest))
     try:
         new_dest = type(dest)([c for c in dest if c != card])  # TODO: fixme?
         if type(new_dest) is Pile:
@@ -181,7 +180,7 @@ def remove_card_from_player_hand(card : Card, pid : int, state : GameState) -> G
     return dc.replace(state,
         players=[
             p if i != pid else dc.replace(p, 
-                hand=remove_card_from_loc(card, p.hand)
+                hand=remove_card_from_loc(p.hand, card)
             ) for (i,p) in enumerate(state.players)
         ]
     )
@@ -195,7 +194,7 @@ def remove_card_from_player_board(card : Card, pid : int, state : GameState) -> 
             p if i != pid else dc.replace(p, 
                 board=[
                     pile if pile.color != card.color
-                    else remove_card_from_loc(card, p.board[card.color])
+                    else remove_card_from_loc(p.board[card.color], card)
                     for pile in p.board 
                 ]
             ) for (i,p) in enumerate(state.players)
@@ -208,7 +207,7 @@ def remove_card_from_player_score(card : Card, pid : int, state : GameState) -> 
     return dc.replace(state,
         players=[
             p if i != pid else dc.replace(p, 
-                scored_cards=remove_card_from_loc(card, p.scored_cards)
+                scored_cards=remove_card_from_loc(p.scored_cards, card)
             ) for (i,p) in enumerate(state.players)
         ]
     )

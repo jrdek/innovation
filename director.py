@@ -11,6 +11,7 @@ from collections.abc import Callable
 from debug_handler import DebugHandler, DFlags
 from dogma_interpreter import DogmaInterpreter
 from structs import *
+from agent_liaison import AgentLiaison
 
 expansion_paths = {
     'base': 'cards/base_game.cards',
@@ -23,12 +24,22 @@ class Director():
     card_list_path : str
     all_cards : List[Card]
     debug : DebugHandler
+    state: GameState
+
+    def active_player_name(self) -> str:
+        return self.state.players[self.active_player].name
+    
+
+    def pid_name(self, pid: int) -> str:
+        return self.state.players[pid].name
+    
 
     def __init__(self, players : List[PlayerAgent], expansions : List[str], debug_flags : List[DFlags]):
         self.player_agents = players
+        self.liaison = AgentLiaison(players)
         self.active_player = 0
         self.is_second_action = True  # player 1 only gets one action
-        self.interpreter : DogmaInterpreter = DogmaInterpreter()
+        self.interpreter : DogmaInterpreter = DogmaInterpreter(self.liaison)
         self.all_cards = []
         if debug_flags is None:
             debug_flags = []
@@ -36,7 +47,7 @@ class Director():
         for e in expansions:
             self.load_cards(expansion_paths[e])
         # NOTE that the format for `decks` will have to change to support expansions...
-        game_players = [get_empty_PlayerState() for _ in players]
+        game_players = [get_empty_PlayerState(name=agent.name) for agent in self.player_agents]
         game_decks = build_decks(self.all_cards)
         game_achievements = []
         game_special_achievements = []
@@ -65,8 +76,8 @@ class Director():
             cards_drawn += 1
         self.state = apply_funcs(self.state, draw_actions)
         print("\nDealt initial cards.")
-        for p in range(len(game_players)):
-            print(f"Player {p+1} hand: [{', '.join(str(card) for card in self.state.players[p].hand)}]")
+        for player in self.state.players:
+            print(f"{player.name}'s hand: [{', '.join(str(card) for card in player.hand)}]")
         print()
 
 
@@ -75,33 +86,27 @@ class Director():
         self.all_cards += parse_cards.get_cards_from_path(path)
 
 
-    # TODO: should this be the director's responsibility?
-    def request_choice_of_many(self, pid: int, bank: List[T], how_many: int) -> List[T]:
-        if len(bank) == 0:
-            return []
-        chosen = self.player_agents[pid].choose(
-            state=self.state,
-            bank=bank,
-            how_many=how_many
-        )
-        assert len(chosen) == how_many
-        assert all(item in bank for item in chosen)
-        return chosen
+    def request_choice_of_action(self, pid) -> TurnAction:
+
+        valid_turn_actions = self.get_valid_turn_actions(pid)
+        return self.liaison.request_choice_of_one(self.state, pid, valid_turn_actions)
+
+
+    def request_choice_from_hand(self, pid) -> Card:
+        return self.liaison.request_choice_of_one(self.state, pid, self.state.players[pid].hand)
     
-    def request_choice_of_one(self, pid: int, bank: List[T]) -> T:
-        chosen = self.request_choice_of_many(pid, bank, 1)
-        if len(chosen) == 0:
-            return None
-        return chosen[0]
     
+    def request_choice_from_top_cards(self, pid) -> Card:
+        return self.liaison.request_choice_of_one(self.state, pid, self.state.players[pid].get_top_cards())
+
 
     def run_initial_melds(self) -> None:
         card_choices = []
         for pid in range(len(self.state.players)):
-            card_choices.append(self.request_choice_of_one(pid, self.state.players[pid].hand))
-        print('; '.join(f"Player {i+1} melds {str(card)}" for i, card in enumerate(card_choices)) + ".")
+            card_choices.append(self.request_choice_from_hand(pid))
+        print('; '.join(f"{player.name} melds {str(card)}" for player, card in zip(self.state.players, card_choices)) + ".")
         self.active_player = card_choices.index(min(card_choices, key=lambda card: card.name))
-        print(f"Player {self.active_player+1} goes first.")
+        print(f"{self.active_player_name()} goes first.")
         # TODO: executor
         meld_actions = []
         for pid, card in enumerate(card_choices):
@@ -121,27 +126,21 @@ class Director():
         # for now at least, this abandons our nice monadic approach
         if action == TurnAction.DRAW:
             if self.debug[DFlags.GAME_LOG]:
-                print(f"ACTION: Player {pid+1} draws.")
-            self.state = do_turn_draw(self.state, pid)
+                print(f"ACTION: {self.pid_name(pid)} draws.")
+            self.state = do_turn_draw(self.state, pid)[0]
         elif action == TurnAction.MELD:
             # request the card
-            chosen_card = self.request_choice_of_one(
-                pid=pid, 
-                bank=self.state.players[pid].hand
-            )
+            chosen_card = self.request_choice_from_hand(pid)
             # then meld it.
-            self.state = meld_from_hand(self.state, pid, chosen_card)
+            self.state = meld_from_hand(self.state, pid, chosen_card)[0]  # TODO: dislike this subscripting
         elif action == TurnAction.DOGMA:
-            chosen_card = self.request_choice_of_one(
-                pid=pid,
-                bank=self.state.players[pid].get_top_cards()
-            )
+            chosen_card = self.request_choice_from_top_cards(pid)
             if self.debug[DFlags.GAME_LOG]:
-                print(f"ACTION: Player {pid+1} uses the dogma of {chosen_card}.")
+                print(f"ACTION: {self.pid_name(pid)} uses the dogma of {chosen_card}.")
             self.state = self.interpret(chosen_card)
         elif action == TurnAction.ACHIEVE:
             # if it's a valid option, it's possible!
-            self.state = achieve(self.state, self.active_player)
+            self.state = achieve(self.state, pid)
         else:
             raise Exception(f"Unknown command {action}! There's probably a bug in the PlayerAgent implementation.")
 
@@ -171,15 +170,15 @@ class Director():
         while self.state.winner is None:
             if self.debug[DFlags.GAME_LOG]:
                 if not self.is_second_action:
-                    print(f"Now it's Player {self.active_player+1}'s turn.")
+                    print(f"Now it's {self.active_player_name()}'s turn.")
             # the active player chooses an action
             # TODO: specialize this type...
             
-            valid_turn_actions = self.get_valid_turn_actions(self.active_player)
-            action = self.request_choice_of_one(self.active_player, valid_turn_actions)
+
+            action = self.request_choice_of_action(self.active_player)
 
             if self.debug[DFlags.TURN_ACTION_CHOICES]:
-                print(f"Player {self.active_player+1}: {action}")
+                print(f"{self.active_player_name()}: {action}")
 
             # we apply the action
             # (if we wanted to have a stack of applied effects, here's where we'd do it...
@@ -192,6 +191,6 @@ class Director():
             self.is_second_action = not self.is_second_action
 
         if self.debug[DFlags.GAME_LOG]:
-            print(f"Player {self.state.winner + 1} wins!")
+            print(f"{self.pid_name(self.state.winner)} wins!")
 
 

@@ -10,15 +10,15 @@ The point of the IR is to translate our Lark tree into just everyday Python.
 Instead of "tree nodes" having a .children list, they will have named fields.
 """
 
-from abc import ABC  # TODO: do I actually *need* ABCs here? i suspect not
-from typing import List, Union, Optional, TypeVar, Generic
+from abc import ABC, abstractmethod  # TODO: do I actually *need* ABCs here? i suspect not
+from typing import List, Union, Optional, TypeVar, Generic, Tuple
 from dataclasses import dataclass
 from enum import Enum, auto
 import structs
 import lark
 from collections.abc import Callable
 from frozenlist import FrozenList
-from structs import GameState, GameStateTransition
+from structs import *
 
 
 # If something is an instance of Choice, then the interpreter
@@ -110,7 +110,9 @@ class Stmts(IRTreeNode, FrozenList[Stmt]):  # TODO: This is breaking some or oth
         if len(self) == 0:
             return "[]"
         return '\n'.join(str(stmt) for stmt in self)
-
+    
+    def interp(self, di):
+        return di.interp_stmts(self)
 
 class Expr(IRTreeNode):
     pass
@@ -126,13 +128,16 @@ class Quantifier(IRTreeNode):
     pass
 
 class AnyQuantifier(Quantifier):
-    pass
+    def interp(self, di) -> Callable[[List[T]], bool]:
+        return di.interp_anyquantifier()
 
 class NoneQuantifier(Quantifier):
-    pass
+    def interp(self, di) -> Callable[[List[T]], bool]:
+        return di.interp_nonequantifier()
 
 class AllQuantifier(Quantifier):
-    pass
+    def interp(self, di) -> Callable[[List[T]], bool]:
+        return di.interp_allquantifier()
 
 
 class CountableExpr(Expr):
@@ -180,13 +185,6 @@ class ColorsExpr(CountableExpr, CardFeature):
 class ColorExpr(ColorsExpr):
     pass
 
-
-class CardsExpr(CountableExpr):
-    pass
-
-class CardExpr(CardsExpr):  # TODO: evaluate design here
-    pass
-
 class PlayersExpr(CountableExpr):
     pass
 
@@ -198,26 +196,33 @@ class AbstractZone(IRTreeNode):
     pass
 
 
-class ReferentExpr(CardExpr):
-    """
-    NOTE. In our grammar, the referents are
-    - it / them (basically the same semantically)
-    - the chosen one(s)
-    - the other one(s)
+@dataclass
+class PlayerZoneExpr(Expr):
+    player: PlayerExpr
+    zone: AbstractZone
 
-    For now, I'm choosing to have the interpreter decide a referent's type at runtime.
-    The card grammar is unambiguous enough to make not just the type, but
-    the *antecedent* of a referent clear to a human player interpreting the
-    card, so I'll trust it.
+    def interp(self, di) -> Tuple[PlayerId, PlayerField]:
+        return di.interp_playerzoneexpr(self)
 
-    TODO: (end of day 4/4) I'm seriously reconsidering this...
-    """
+
+class CardsExpr(CountableExpr):
+    @abstractmethod
+    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+        ...
+
+class CardExpr(CardsExpr):  # TODO: evaluate design here
     pass
+
+
+class ReferentExpr(CardExpr):
+    # TODO: is this always a CardExpr?
+    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+        return di.get_referentexpr_zones()
 
 
 class ThoseOnesExpr(ReferentExpr):
-    pass
-
+    def interp(self, di):
+        return di.interp_thoseonesexpr()
 
 class OtherOnesExpr(ReferentExpr):
     pass
@@ -244,16 +249,13 @@ class TopOfPile(PileLoc):
     pass
 
 
-@dataclass
-class PlayerZoneExpr(Expr):
-    player: PlayerExpr
-    zone: AbstractZone
-
-
 FeaturesLike = BoolFunc[CardFeature]
 
 class AnyFeatures(FeaturesLike):
     pass
+
+    def interp(self, di) -> CardProp:
+        return di.interp_anyfeatures()
 
 class SelectionLambda(IRTreeNode):
     pass
@@ -269,6 +271,9 @@ class HighestSuperlative(Superlative):
 
 class LowestSuperlative(Superlative):
     pass
+
+    def interp(self, di) -> Callable[[List[T]], T]:
+        return di.interp_lowestsuperlative()
 
 @dataclass
 class ExtremeValueExpr(NumberExpr):
@@ -289,14 +294,22 @@ class ZonelessSelectionStrategy(IRTreeNode):
 @dataclass
 class ZonedSelectionStrategy(ZonelessSelectionStrategy):
     src: PlayerZoneExpr
+    
+    def interp(self, di) -> EvaluatedZonedSelectionStrategy:
+        return di.interp_zonedselectionstrategy(self)
+
+
 
 
 
 @dataclass
-class CardsAreLikeExpr(BoolExpr, ABC):
+class CardsAreLikeExpr(BoolExpr):
     cards: CardsExpr
     like: FeaturesLike
     quantifier: Optional[Quantifier] = AnyQuantifier()  # CHECKME: not all?
+    
+    def interp(self, di) -> bool:
+        return di.interp_cardsarelikeexpr(self)
 
 
 @dataclass
@@ -319,6 +332,9 @@ class NumberLiteralExpr(NumberExpr):
 @dataclass
 class IconLiteralExpr(IconExpr):
     icon: structs.Icon
+
+    def interp(self, di) -> Icon:
+        return di.interp_iconliteralexpr(self)
 
 
 @dataclass
@@ -366,11 +382,19 @@ class PlayerScoreExpr(NumberExpr):
 class NoCondition(BoolExpr):
     pass
 
+    def interp(self, di) -> bool:
+        return di.interp_nocondition()
+
+
 @dataclass
 class ZonelessCardsThatExpr(CardsExpr):
     that: FeaturesLike
     strat: Optional[ZonelessSelectionStrategy] = None  # TODO: de-Noneify this
     condition: BoolExpr = NoCondition()
+
+    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+        return di.get_zonelesscardsthatexpr_zones(self)
+
 
 # TODO: should this inherit from ZonelessCardsThat?
 @dataclass
@@ -378,6 +402,12 @@ class CardsThatExpr(CardsExpr):
     that: FeaturesLike
     strat: Optional[ZonedSelectionStrategy] = None # TODO: what to do if this is None?
     condition: BoolExpr = NoCondition()
+
+    def interp(self, di) -> List[Card]:
+        return di.interp_cardsthatexpr(self)
+
+    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+        return di.get_cardsthatexpr_zones(self)
     
 
 @dataclass
@@ -387,7 +417,9 @@ class IconsInCardsExpr(NumberExpr):
 
 
 class CardNamesExpr(CardExpr, CardFeature):  # CardExpr because you can refer to cards by their names
-    pass
+    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+        # TODO: is this needed?
+        raise Exception("Unimplemented")
 
 @dataclass
 class CardNameExpr(CardNamesExpr):
@@ -478,6 +510,9 @@ class NameOfCard(CardNameExpr):
 class HasFeatureFunc(BoolFunc[F]):
     feature: F
 
+    def interp(self, di) -> CardProp:
+        return di.interp_hasfeaturefunc(self)
+
 # TODO: does this require separate and/or/not
 # types from just the *boolean* and/or/not?
 
@@ -497,7 +532,10 @@ class NotFunc(BoolFunc[T]):
 
 @dataclass
 class AbstractZoneLiteral(AbstractZone):
-    field: structs.PlayerField
+    field: PlayerField
+
+    def interp(self, di) -> PlayerField:
+        return di.interp_abstractzoneliteral(self)
 
 # TODO: integrate these nicely with the literals
 class TopCardsZone(AbstractZone):
@@ -509,6 +547,9 @@ class BottomCardsZone(AbstractZone):
 
 class YouExpr(PlayerExpr):
     pass
+
+    def interp(self, di) -> PlayerState:
+        return di.interp_youexpr()
 
 class MeExpr(PlayerExpr):
     pass
@@ -555,6 +596,9 @@ class DrawAndFriendlyStmtName(Enum):
 class MeldStmt(Stmt):
     cards: CardsExpr
 
+    def interp(self, di) -> GameState:
+        return di.interp_meldstmt(self)
+
 @dataclass
 class RevealStmt(Stmt):
     card: CardExpr
@@ -563,15 +607,22 @@ class RevealStmt(Stmt):
 class ScoreStmt(Stmt):
     cards: CardsExpr
 
+    def interp(self, di):
+        return di.interp_scorestmt(self)
+
+
 @dataclass
 class TuckStmt(Stmt):
     cards: CardsExpr
 
 @dataclass
-class DrawAndStmt(Stmt):
-    then: DrawAndFriendlyStmtName
+class DrawAndStmt(DrawStmt):
     amount: NumberExpr
     age: NumberExpr
+    then: DrawAndFriendlyStmtName
+
+    def interp(self, di) -> GameState:
+        return di.interp_drawandstmt(self)
 
 
 
@@ -585,6 +636,9 @@ class ForStmt(Stmt):
 class IfStmt(Stmt):
     condition: BoolExpr
     then_do: Stmts
+    
+    def interp(self, di):
+        return di.interp_ifstmt(self)
 
 @dataclass
 class IfElseStmt(Stmt):  # TODO: consider inheritance?
@@ -604,6 +658,9 @@ class IfElseStmt(Stmt):  # TODO: consider inheritance?
 
 class RepeatStmt(Stmt):
     pass
+
+    def interp(self, di):
+        di.interp_repeatstmt()
 
 
 @dataclass
