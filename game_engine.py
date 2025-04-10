@@ -2,9 +2,17 @@ from atomic_changes import *
 from debug_handler import DFlags
 from typing import Tuple
 from structs import *
+import dataclasses as dc
 
-# We implement gameplay as transition functions between the current state and a new state.
-# TODO: these probably shouldn't be static functions
+"""
+We implement gameplay as transition functions between the current state and a new state.
+This file is a library of all such transition functions which need to be used.
+"""
+
+# TODO: make typing go from GS -> GS instead of GameState to GameState
+
+# NOTE: This entire file handles atomic changes for *immutable* GameStates.
+# Accordingly, it should only ever be used by the ImmutableGameManager.
 
 
 @assume_partial
@@ -38,11 +46,19 @@ def select_turn_draw(state : GameState, pid : PlayerId) -> int:
     return turn_draw
 
 
+def make_next_action(state: GameState) -> GameState:
+    is_now_second_action = not state.is_second_action
+    now_active_player = state.active_player if is_now_second_action else (state.active_player + 1) % len(state.players)
+    return dc.replace(
+        state,
+        is_second_action=is_now_second_action,
+        active_player=now_active_player
+    )
+
+
 # Draw one card of a given age.
 def draw_n(state : GameState, pid : PlayerId, age : Age) -> Tuple[GameState, Card]:
     # Draw from the lowest non-empty pile >= n
-    if state.debug[DFlags.GAME_LOG]:
-        old_age = age
 
     while (age <= 10) and (len(state.decks[age]) == 0):
         if state.debug[DFlags.GAME_LOG]:
@@ -52,7 +68,8 @@ def draw_n(state : GameState, pid : PlayerId, age : Age) -> Tuple[GameState, Car
         # the game is over!
         if state.debug[DFlags.GAME_LOG]:
             print(f"{state.players[pid].name} tried to draw an 11!")
-        state.winner = pid
+        # FIXME: neaten
+        state = dc.replace(state, winner=pid)
         return (state, None)
     drawn_card = state.decks[age][-1]
 

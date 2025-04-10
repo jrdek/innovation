@@ -8,6 +8,8 @@ have to choose things of a given type!
 
 The point of the IR is to translate our Lark tree into just everyday Python.
 Instead of "tree nodes" having a .children list, they will have named fields.
+
+Note that cards are immutable (and we probably won't ever want to mutate them).
 """
 
 from abc import ABC, abstractmethod  # TODO: do I actually *need* ABCs here? i suspect not
@@ -19,6 +21,13 @@ import lark
 from collections.abc import Callable
 from frozenlist import FrozenList
 from structs import *
+
+
+"""
+TODO:
+- Organize this file's definitions! They're scattered.
+- (evaluate a few typing decisions)
+"""
 
 
 # If something is an instance of Choice, then the interpreter
@@ -34,6 +43,11 @@ class IRTreeNode:
     not core-functionality code, so I'm not too stressed about that.)
     """
 
+    """
+    Pretty-print IRTreeNodes.
+    Recursively, any children of a node which aren't successfully transformed into IRTreeNodes
+    are printed in red to show that I still need to implement them.
+    """
     def __str_helper__(self) -> List[Union[str, List]]:  # TODO: type better
         out_list = [type(self).__name__]
         for key, value in self.__dict__.items():
@@ -52,6 +66,7 @@ class IRTreeNode:
                 new_item = (key, value_repr)
             out_list.append(new_item)
         return out_list
+
 
     def __str__(self):
         # handle indentation here
@@ -94,7 +109,7 @@ class Stmt(IRTreeNode):
 
 # a Stmts object is the root of every DEffect tree
 # TODO: pretty-printing Stmts objects is half broken
-class Stmts(IRTreeNode, FrozenList[Stmt]):  # TODO: This is breaking some or other idiom. Does this *have* a List, or *is* it a List?
+class Stmts(IRTreeNode, Tuple[Stmt]):  # TODO: This is breaking some or other idiom. Does this *have* a List, or *is* it a List?
     def __str_helper__(self):
         if not self:
             return ["[]"]
@@ -114,11 +129,14 @@ class Stmts(IRTreeNode, FrozenList[Stmt]):  # TODO: This is breaking some or oth
     def interp(self, di):
         return di.interp_stmts(self)
 
+
 class Expr(IRTreeNode):
     pass
 
+
 class CardFeature(Expr):
     pass
+
 
 T = TypeVar(name="T")
 F = TypeVar(name="F", bound=CardFeature)
@@ -127,16 +145,19 @@ F = TypeVar(name="F", bound=CardFeature)
 class Quantifier(IRTreeNode):
     pass
 
+
 class AnyQuantifier(Quantifier):
-    def interp(self, di) -> Callable[[List[T]], bool]:
+    def interp(self, di) -> Callable[[Tuple[T]], bool]:
         return di.interp_anyquantifier()
 
+
 class NoneQuantifier(Quantifier):
-    def interp(self, di) -> Callable[[List[T]], bool]:
+    def interp(self, di) -> Callable[[Tuple[T]], bool]:
         return di.interp_nonequantifier()
 
+
 class AllQuantifier(Quantifier):
-    def interp(self, di) -> Callable[[List[T]], bool]:
+    def interp(self, di) -> Callable[[Tuple[T]], bool]:
         return di.interp_allquantifier()
 
 
@@ -147,15 +168,22 @@ class CountableExpr(Expr):
 class BoolExpr(Expr):
     pass
 
+
 class SuccessExpr(BoolExpr):
     pass
+
 
 class OnlyYouHaveAllColorsExpr(BoolExpr):
     pass
 
+
 # type which maps Ts to bools; basically a predicate on Ts
 class BoolFunc(IRTreeNode, Generic[T]):
     pass
+
+
+FeaturesLike = BoolFunc[CardFeature]
+
 
 class NumbersExpr(CountableExpr, CardFeature):
     pass
@@ -168,12 +196,15 @@ class NumberExpr(NumbersExpr):
 class AllNumberExpr(NumberExpr):
     pass
 
-@dataclass
+
+@dataclass(frozen=True)
 class AllButNumberExpr(NumberExpr):
     num: NumberExpr
 
+
 class IconsExpr(CountableExpr, CardFeature):
     pass
+
 
 class IconExpr(IconsExpr):
     pass
@@ -182,11 +213,14 @@ class IconExpr(IconsExpr):
 class ColorsExpr(CountableExpr, CardFeature):
     pass
 
+
 class ColorExpr(ColorsExpr):
     pass
 
+
 class PlayersExpr(CountableExpr):
     pass
+
 
 class PlayerExpr(PlayersExpr):
     pass
@@ -196,7 +230,7 @@ class AbstractZone(IRTreeNode):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class PlayerZoneExpr(Expr):
     player: PlayerExpr
     zone: AbstractZone
@@ -207,22 +241,24 @@ class PlayerZoneExpr(Expr):
 
 class CardsExpr(CountableExpr):
     @abstractmethod
-    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+    def get_zones(self, di) -> Tuple[Tuple[PlayerId, PlayerField]]:
         ...
 
-class CardExpr(CardsExpr):  # TODO: evaluate design here
+
+class CardExpr(CardsExpr):  # TODO: evaluate design re: these separate plural types
     pass
 
 
 class ReferentExpr(CardExpr):
     # TODO: is this always a CardExpr?
-    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+    def get_zones(self, di) -> Tuple[Tuple[PlayerId, PlayerField]]:
         return di.get_referentexpr_zones()
 
 
 class ThoseOnesExpr(ReferentExpr):
     def interp(self, di):
         return di.interp_thoseonesexpr()
+
 
 class OtherOnesExpr(ReferentExpr):
     pass
@@ -236,24 +272,26 @@ class ChosenOnesExpr(ReferentExpr):
 class ThemExpr(PlayerExpr):
     pass
 
+
 class DemocracyRecordExpr(NumberExpr):
     pass
+
 
 class PileLoc(CardFeature):
     pass
 
+
 class BottomOfPile(PileLoc):
     pass
+
 
 class TopOfPile(PileLoc):
     pass
 
 
-FeaturesLike = BoolFunc[CardFeature]
+
 
 class AnyFeatures(FeaturesLike):
-    pass
-
     def interp(self, di) -> CardProp:
         return di.interp_anyfeatures()
 
@@ -270,12 +308,10 @@ class HighestSuperlative(Superlative):
     pass
 
 class LowestSuperlative(Superlative):
-    pass
-
-    def interp(self, di) -> Callable[[List[T]], T]:
+    def interp(self, di) -> Callable[[Tuple[T]], T]:
         return di.interp_lowestsuperlative()
 
-@dataclass
+@dataclass(frozen=True)
 class ExtremeValueExpr(NumberExpr):
     superlative: Superlative
     zone: PlayerZoneExpr
@@ -285,13 +321,13 @@ class ColorsOnOnlyYourBoardExpr(ColorsExpr):
 
 # How many of which cards are we selecting?
 # (FIXME: kw_only is a hack to allow subclasses with non-default args)
-@dataclass(kw_only=True)
+@dataclass(frozen=True, kw_only=True)
 class ZonelessSelectionStrategy(IRTreeNode):
     num: NumberExpr = AllNumberExpr()
     selection_lambda: SelectionLambda = AnySelection()
 
 # From where?
-@dataclass
+@dataclass(frozen=True)
 class ZonedSelectionStrategy(ZonelessSelectionStrategy):
     src: PlayerZoneExpr
     
@@ -302,7 +338,7 @@ class ZonedSelectionStrategy(ZonelessSelectionStrategy):
 
 
 
-@dataclass
+@dataclass(frozen=True)
 class CardsAreLikeExpr(BoolExpr):
     cards: CardsExpr
     like: FeaturesLike
@@ -312,7 +348,7 @@ class CardsAreLikeExpr(BoolExpr):
         return di.interp_cardsarelikeexpr(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class CountExpr(NumberExpr):
     countable: CountableExpr
 
@@ -321,7 +357,7 @@ class PointsExpr(NumberExpr):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class NumberLiteralExpr(NumberExpr):
     number: int
 
@@ -329,7 +365,7 @@ class NumberLiteralExpr(NumberExpr):
         return di.interp_numberliteralexpr(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class IconLiteralExpr(IconExpr):
     icon: structs.Icon
 
@@ -337,91 +373,95 @@ class IconLiteralExpr(IconExpr):
         return di.interp_iconliteralexpr(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ColorLiteralExpr(ColorExpr):
     color: structs.Color
 
 
-@dataclass
+@dataclass(frozen=True)
 class ChooseUpToNumberExpr(NumberExpr, Choice):
     # user must choose how many, up to [num].
     upper_bound: NumberExpr
 
 
-@dataclass
+@dataclass(frozen=True)
 class SumExpr(NumberExpr):
     left: NumberExpr
     right: NumberExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class ProductExpr(NumberExpr):
     left: NumberExpr
     right: NumberExpr
 
+
 class RoundDir(IRTreeNode):
     pass
+
 
 class RoundedUp(RoundDir):
     pass
 
+
 class RoundedDown(RoundDir):
     pass
 
-@dataclass
+
+@dataclass(frozen=True)
 class QuotientExpr(NumberExpr):
     dividend: NumberExpr
     divisor: NumberExpr
     round_dir: RoundDir = RoundedDown()
 
-@dataclass
+
+@dataclass(frozen=True)
 class PlayerScoreExpr(NumberExpr):
     player: PlayerExpr
 
 
-
 class NoCondition(BoolExpr):
-    pass
-
     def interp(self, di) -> bool:
         return di.interp_nocondition()
 
 
-@dataclass
+@dataclass(frozen=True)
 class ZonelessCardsThatExpr(CardsExpr):
     that: FeaturesLike
     strat: Optional[ZonelessSelectionStrategy] = None  # TODO: de-Noneify this
     condition: BoolExpr = NoCondition()
 
-    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+    def get_zones(self, di) -> Tuple[Tuple[PlayerId, PlayerField]]:
         return di.get_zonelesscardsthatexpr_zones(self)
 
 
 # TODO: should this inherit from ZonelessCardsThat?
-@dataclass
+@dataclass(frozen=True)
 class CardsThatExpr(CardsExpr):
     that: FeaturesLike
     strat: Optional[ZonedSelectionStrategy] = None # TODO: what to do if this is None?
     condition: BoolExpr = NoCondition()
 
-    def interp(self, di) -> List[Card]:
+    def interp(self, di) -> Tuple[Card]:
         return di.interp_cardsthatexpr(self)
 
-    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+    def get_zones(self, di) -> Tuple[Tuple[PlayerId, PlayerField]]:
         return di.get_cardsthatexpr_zones(self)
     
 
-@dataclass
+@dataclass(frozen=True)
 class IconsInCardsExpr(NumberExpr):
     icons: IconsExpr
     cards: CardsThatExpr
 
 
 class CardNamesExpr(CardExpr, CardFeature):  # CardExpr because you can refer to cards by their names
-    def get_zones(self, di) -> List[Tuple[PlayerId, PlayerField]]:
+    def get_zones(self, di) -> Tuple[Tuple[PlayerId, PlayerField]]:
         # TODO: is this needed?
         raise Exception("Unimplemented")
 
-@dataclass
+
+@dataclass(frozen=True)
 class CardNameExpr(CardNamesExpr):
     name: str
 
@@ -438,31 +478,34 @@ class EqualToCompareOp(NumericCompareOp):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class ComparisonExpr(BoolExpr):
     thing_1: NumberExpr
     compare_op: NumericCompareOp
     thing_2: NumberExpr
 
 
-@dataclass
+@dataclass(frozen=True)
 class DemandHadEffectExpr(BoolExpr):
     desired: bool  # expr evals to True iff (whether an effect happened) == desired
 
 
-@dataclass
+@dataclass(frozen=True)
 class AndExpr(BoolExpr):
     left: BoolExpr
     right: BoolExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class OrExpr(BoolExpr):
     left: BoolExpr
     right: BoolExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class NotExpr(BoolExpr):
     pred: BoolExpr
+
 
 # ideally, AnyOne would be a single object...
 # but typing that is hard. so we'll make one per
@@ -470,113 +513,131 @@ class NotExpr(BoolExpr):
 class AnyNumber(NumberExpr, Choice):
     pass
 
+
 class AnyColor(ColorExpr, Choice):
     pass
 
-@dataclass
+
+@dataclass(frozen=True)
 class ValuesOfCards(NumbersExpr):
     cards: CardExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class ColorsOfCards(ColorsExpr):
     cards: CardExpr
 
-@dataclass
-class ListOfColorsExpr(ColorsExpr):
-    colors: List[ColorExpr]
 
-@dataclass
+@dataclass(frozen=True)
+class TupleOfColorsExpr(ColorsExpr):
+    colors: Tuple[ColorExpr]
+
+
+@dataclass(frozen=True)
 class ColorsOnPlayerBoardExpr(ColorsExpr):
     player: PlayerExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class NamesOfCards(CardNamesExpr):
     cards: CardExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class ValueOfCard(NumberExpr):
     card: CardExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class ColorOfCard(ColorExpr):
     card: CardExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class NameOfCard(CardNameExpr):
     card: CardExpr
 
 
-@dataclass
+@dataclass(frozen=True)
 class HasFeatureFunc(BoolFunc[F]):
     feature: F
 
     def interp(self, di) -> CardProp:
         return di.interp_hasfeaturefunc(self)
 
-# TODO: does this require separate and/or/not
-# types from just the *boolean* and/or/not?
 
-@dataclass
+@dataclass(frozen=True)
 class AndFunc(BoolFunc[T]):
     left: BoolFunc[T]
     right: BoolFunc[T]
 
-@dataclass
+
+@dataclass(frozen=True)
 class OrFunc(BoolFunc[T]):
     left: BoolFunc[T]
     right: BoolFunc[T]
 
-@dataclass
+
+@dataclass(frozen=True)
 class NotFunc(BoolFunc[T]):
     pred: BoolFunc[T]
 
-@dataclass
+
+@dataclass(frozen=True)
 class AbstractZoneLiteral(AbstractZone):
     field: PlayerField
 
     def interp(self, di) -> PlayerField:
         return di.interp_abstractzoneliteral(self)
 
+
 # TODO: integrate these nicely with the literals
 class TopCardsZone(AbstractZone):
     pass
+
 
 class BottomCardsZone(AbstractZone):
     pass  # not sure if this is needed, but I'm including it on principle
 
 
 class YouExpr(PlayerExpr):
-    pass
-
     def interp(self, di) -> PlayerState:
         return di.interp_youexpr()
+
 
 class MeExpr(PlayerExpr):
     pass
 
+
 class EveryoneExpr(PlayersExpr):
     pass
+
 
 class EveryoneElseExpr(PlayersExpr):
     pass
 
+
 class NobodyExpr(PlayersExpr):
     pass
+
 
 class AnyoneExpr(PlayerExpr):
     pass
 
+
 class AnyoneElseExpr(PlayerExpr):
     pass
 
+
 class ChooseSomeoneExpr(PlayerExpr, Choice):
     pass
+
 
 class MyChoiceOfCardExpr(CardExpr, Choice):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class DrawStmt(Stmt):
     amount: NumberExpr  # how many cards?
     age: NumberExpr  # what age?
@@ -585,25 +646,27 @@ class DrawStmt(Stmt):
         return di.interp_drawstmt(self)
 
 
-
 class DrawAndFriendlyStmtName(Enum):
     MELD = auto()
     REVEAL = auto()
     SCORE = auto()
     TUCK = auto()
 
-@dataclass
+
+@dataclass(frozen=True)
 class MeldStmt(Stmt):
     cards: CardsExpr
 
     def interp(self, di) -> GameState:
         return di.interp_meldstmt(self)
 
-@dataclass
+
+@dataclass(frozen=True)
 class RevealStmt(Stmt):
     card: CardExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class ScoreStmt(Stmt):
     cards: CardsExpr
 
@@ -611,11 +674,12 @@ class ScoreStmt(Stmt):
         return di.interp_scorestmt(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class TuckStmt(Stmt):
     cards: CardsExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class DrawAndStmt(DrawStmt):
     amount: NumberExpr
     age: NumberExpr
@@ -625,14 +689,14 @@ class DrawAndStmt(DrawStmt):
         return di.interp_drawandstmt(self)
 
 
-
-@dataclass
+@dataclass(frozen=True)
 class ForStmt(Stmt):
     countable: CountableExpr
     count_by: NumberLiteralExpr
     do: Stmts
 
-@dataclass
+
+@dataclass(frozen=True)
 class IfStmt(Stmt):
     condition: BoolExpr
     then_do: Stmts
@@ -640,7 +704,8 @@ class IfStmt(Stmt):
     def interp(self, di):
         return di.interp_ifstmt(self)
 
-@dataclass
+
+@dataclass(frozen=True)
 class IfElseStmt(Stmt):  # TODO: consider inheritance?
     condition: BoolExpr
     then_do: Stmts
@@ -652,55 +717,56 @@ class IfElseStmt(Stmt):  # TODO: consider inheritance?
                 return self.then_do.func()(cur_state)
             else:
                 return self.else_do.func()(cur_state)
-        
         return execute_a_path
 
 
 class RepeatStmt(Stmt):
-    pass
-
     def interp(self, di):
         di.interp_repeatstmt()
 
 
-@dataclass
+@dataclass(frozen=True)
 class DoXOrYStmt(Stmt):
     path_1: Stmts
     path_2: Stmts
 
 
-@dataclass
+@dataclass(frozen=True)
 class YouMayStmt(Stmt):
     stmts: Stmts
 
 
-@dataclass
+@dataclass(frozen=True)
 class TransferStmt(Stmt):
     cards: CardsExpr
     dest: PlayerZoneExpr
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReturnStmt(Stmt):
     cards: CardsExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class NukeStmt(Stmt):
     cards: CardsExpr
+
 
 class EndDogmaActionStmt(Stmt):
     pass
 
-@dataclass
+
+@dataclass(frozen=True)
 class WinStmt(Stmt):
     winner: PlayerExpr
 
 
-@dataclass
+@dataclass(frozen=True)
 class DogmaComboStmt(Stmt):
     card: CardExpr
 
-@dataclass
+
+@dataclass(frozen=True)
 class SplayDirection(Expr):
     direction: Optional[structs.Splay]  # "None" means any direction
 
@@ -708,30 +774,33 @@ class SplayDirection(Expr):
 # TODO: consider restructuring
 # this is a handy little product type, but
 # i'm not sure we need it
-
-@dataclass
+@dataclass(frozen=True)
 class PlayersFeatureExpr(Generic[F], Expr):
     players: PlayersExpr
     feature: F
 
+
 # CHECKME
-@dataclass
+@dataclass(frozen=True)
 class AnySplayedColorExpr(Choice, ColorExpr):
     player: PlayerExpr
     direction: SplayDirection
 
-@dataclass
+
+@dataclass(frozen=True)
 class PileIsSplayedExpr(BoolExpr):
     player: PlayerExpr
     color: ColorExpr
     direction: SplayDirection
 
-@dataclass
+
+@dataclass(frozen=True)
 class SplayStmt(Stmt):
     player: PlayersExpr
     color: ColorsExpr
     direction: SplayDirection
 
-@dataclass
+
+@dataclass(frozen=True)
 class SpecialAchieveStmt(Stmt):
     name: CardNameExpr

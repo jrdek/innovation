@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple, TypeVar
+from typing import List, Iterable
 from structs import T, TurnAction, Color, Icon, Card, GameState
 from enum import Enum
 
@@ -7,10 +7,12 @@ from enum import Enum
 class PlayerAgent(ABC):
     name: str
 
+    # Given a list of valid options, choose one.
     @abstractmethod
     def choose(self, state: GameState, bank: List[T], num_to_choose: int) -> List[T]:
         ...
 
+    # Update the agent's knowledge of the state of the game (namely, via "reveal" effects).
     @abstractmethod
     def notify(self, state: GameState, cards: List[Card], owner: int):
         ...
@@ -23,7 +25,7 @@ class ScriptedAgent(PlayerAgent):
         self.choice_num : int = 0
     
 
-    def choose(self, state: GameState, bank: List[T], how_many: int) -> List[T]:
+    def choose(self, _: GameState, bank: Iterable, how_many: int) -> Iterable[T]:
         assert len(bank) != 0  # (handled elsewhere)
         if self.choice_num >= len(self.script):
             raise Exception("Out of commands")
@@ -31,7 +33,7 @@ class ScriptedAgent(PlayerAgent):
         choices = []
         # just do the next thing in the script
         # interpret that next thing based on the bank's type:
-        bank_item = bank[0]
+        bank_item = next(iter(bank))
         for _ in range(how_many):
             choice_text = self.script[self.choice_num]
             chosen_object = None
@@ -56,6 +58,5 @@ class ScriptedAgent(PlayerAgent):
     
 
     def notify(self, state: GameState, cards: List[Card], owner: int):
-        # (dummy function, since this is scripted anyways)
-
+        # (dummy function; these guys are just following their script)
         print(f"\t\t\t<{self.name}: acknowledging that {state.players[owner].name}'s hand has [{', '.join(str(card) for card in cards)}]>")

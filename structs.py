@@ -1,42 +1,21 @@
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import List, Dict, TypeVar, Deque, Optional, Union
+from typing import Dict, TypeVar, Optional, Sequence, Tuple, Container, FrozenSet
 from dataclasses import dataclass
 from collections.abc import Callable
 from functools import partial
 from inspect import signature
-from debug_handler import DFlags, DebugHandler
-from collections import Counter, deque
+from debug_handler import DebugHandler
+from abc import ABC
+from collections import Counter
 
+
+# (i just want to be able to print enums as strs)
+# this is in certain versions of Python but not others
 class StrEnum(Enum):
     def __str__(self):
         return self.name
-
-
-# TODO: What's a better type signature for this?
-def apply_funcs(t : any, fs : List[Callable]) -> any:
-    for f in fs:
-        t = f(t)
-    return t
-
-
-# decorator to assume that a function is partial if not all args
-# are supplied.
-# NOTE: this might break if func uses *args/**kwargs
-def assume_partial(func):
-    num_params = len(signature(func).parameters)
-    def wrapper(*args):
-        if len(args) < num_params:
-            # TODO: is this bad?
-            subfunc = assume_partial(partial(func, *args))
-            return subfunc
-        else:
-            return func(*args)  # throws error if too many args
-    return wrapper
-
-
-T = TypeVar("T")
 
 
 class TurnAction(StrEnum):
@@ -47,11 +26,11 @@ class TurnAction(StrEnum):
 
 
 class Color(StrEnum):
-    RED = auto()
-    YELLOW = auto()
-    GREEN = auto()
-    BLUE = auto()
-    PURPLE = auto()
+    RED = 0
+    YELLOW = 1
+    GREEN = 2
+    BLUE = 3
+    PURPLE = 4
 
 
 class Icon(StrEnum):
@@ -104,7 +83,6 @@ card_colors : Dict[Color, str] = {
     Color.BLUE: '\033[94m',
     Color.PURPLE: '\033[95m'
 }
-
 color_end = '\033[0m'
 
 
@@ -115,7 +93,7 @@ def colored_str(s : str, c : Color) -> str:
 # A DEffect corresponds to `dogma_effect` in the grammar:
 # - the `effect_header` is stored as DEffect.key_icon and DEffect.is_demand
 # - the `stmts` are stored as a list of DogmaActions
-@dataclass
+@dataclass(frozen=True)
 class DEffect:
     is_demand : bool
     key_icon : Icon
@@ -131,15 +109,14 @@ class DEffect:
                 s += INDENT + line + "\n"
         return s
 
-Dogma = List[DEffect]
 
-@dataclass
+@dataclass(frozen=True)
 class Card:
     name : str
     color : Color
     age : int
-    icons : List[Icon]
-    dogmata : List[DEffect]
+    icons : Tuple[Icon]
+    dogmata : Tuple[DEffect]
 
     # card names are unique -- if two cards have the 
     # same name, then they are equal
@@ -166,20 +143,15 @@ class Card:
         return f"<{card_colors[self.color]}[{self.age}] {self.name}{color_end}>"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SpecialAchievement:
     name : str
     meets_cond : Callable[[GameState, int], bool]
     # special achievements don't need to know who owns them
 
 
-# NOTE: Initially, Pile inherited from deque.
-# It ended up being a bit easier to just have the container of cards be a field
-# which is accessed transparently via __getitem__ and __contains__.
-# TODO: Think more about this choice.
-@dataclass
-class Pile:
-    cards : Deque[Card]
+class Pile(ABC, Sequence):
+    cards : Container[Card]
     splay : Splay
     
     def __contains__(self, item) -> bool:
@@ -205,81 +177,151 @@ class Pile:
         return total
     
 
-def get_empty_PlayerState(name: str) -> PlayerState:
-    return PlayerState(
-        name=name,
-        hand=[],
-        scored_cards=[],
-        achieved_cards=[],
-        special_achievements=[],
-        board=get_empty_board()
-    )
+@dataclass(frozen=True)
+class ImmutablePile(Pile):
+    cards: Tuple[Card] = ()  # (O(n) retrieval, but it's OK: piles are tractably small)
 
-
-def get_empty_board() -> Dict[Color, Pile]:
-    return {color: Pile(deque(), Splay.NONE) for color in Color}
+    def __getitem__(self, item):
+        return item in self.cards
 
 
 # A PlayerState is a full-detail snapshot of a player's hand/board/etc.
-@dataclass
-class PlayerState:
+class PlayerState(ABC):
     name: str
-    hand : List[Card]
-    scored_cards : List[Card]
-    achieved_cards : List[Card]
-    special_achievements : List[SpecialAchievement]
-    board : Dict[Color, Pile]
+    hand : Container[Card]
+    scored_cards : Container[Card]
+    achieved_cards : Container[Card]
+    special_achievements : Container[SpecialAchievement]
+    board : Board
+
+
+    @property
+    def fields(self) -> Dict[PlayerField, Container]:
+        return {
+            PlayerField.ACHIEVEMENTS_PILE: self.achieved_cards,
+            PlayerField.BOARD: self.board,
+            PlayerField.HAND: self.hand,
+            PlayerField.SCORE_PILE: self.scored_cards
+        }
+
 
     def count_achievements(self) -> int:
         return len(self.achieved_cards)
     
+
     def count_score(self) -> int:
         return sum(card.age for card in self.scored_cards)
     
+
     def get_score_profile(self) -> Counter[int]:
         return Counter([card.age for card in self.scored_cards])
     
+
     def count_icon(self, targ_icon : Icon) -> int:
-        return sum(pile.count_icon(targ_icon) for pile in self.board.values())
+        return sum(pile.count_icon(targ_icon) for pile in self.board.piles)
     
-    def get_top_cards(self) -> List[Card]:
+
+    def get_top_cards(self) -> Tuple[Card]:
         out = []
         for color in Color:
             if len(self.board[color]) > 0:
                 out.append(self.board[color].top())
         return out
+    
+
+class Board(ABC):
+    piles: Container[Pile]
 
 
+    def __getitem__(self, item) -> Pile:
+        # assert isinstance(item, Color)
+        if isinstance(item, Color):
+            item = item.value  # TODO: this feels cheeky...
+        return self.piles[item]
+    
 
-@dataclass
-class GameState:
-    players : List[PlayerState]
-    decks : List[Deque[Card]]  # NOTE that this does not extend to expansion draw rules!
-    achievements : List[Card]
-    special_achievements : List[SpecialAchievement]
-    winner : Optional[int]
-    debug : DebugHandler
+@dataclass(frozen=True)
+class ImmutableBoard(Board):
+    piles: Tuple[ImmutablePile] = tuple(ImmutablePile() for _ in range(len(Color)))
 
 
-GameStateTransition = Callable[[GameState], GameState]
-CardProp = Callable[[Card], bool]
-CardsProp = Callable[[List[Card]], bool]
-CardLoc = Union[List[Card], Pile, Deque]
-PlayerId = int
-Age = int
+@dataclass(frozen=True)
+class ImmutablePlayerState(PlayerState):
+    name: str
+    hand: FrozenSet[Card] = frozenset()
+    scored_cards: FrozenSet[Card] = frozenset()
+    achieved_cards: FrozenSet[Card] = frozenset()
+    special_achievements: FrozenSet[SpecialAchievement] = frozenset()
+    board: ImmutableBoard = ImmutableBoard()
+
+
+class GameState(ABC):
+    debug: DebugHandler
+    players: Sequence[PlayerState]
+    active_player: PlayerId = 0
+    is_second_action: bool = False
+    decks: Sequence[CardSequence]
+    achievements: CardSequence
+    special_achievements: Tuple[SpecialAchievement]
+    winner: Optional[PlayerId]
+
+
+@dataclass(frozen=True)
+class ImmutableGameState(GameState):
+    debug: DebugHandler
+    players: Tuple[ImmutablePlayerState] = ()
+    active_player: PlayerId = 0
+    is_second_action: bool = False
+    decks: Tuple[ImmutableCardSequence] = ()
+    achievements: Tuple[Card] = ()
+    special_achievements: Tuple[SpecialAchievement] = ()
+    winner : Optional[PlayerId] = None
+
 
 @dataclass
 class EvaluatedZonedSelectionStrategy:
     num: int
-    selection_lambda: Callable[[List[T]], T]
+    selection_lambda: Callable[[Container[T]], T]
     pid: PlayerId
     field: PlayerField
 
 
-# util function to sort a list of cards into appropriate decks.
-# TODO: where should this go? maybe not this file...
-def build_decks(all_cards : List[Card]) -> List[Deque[Card]]:
-    decks = [[] for _ in range(11)]  # the 0 deck should always be empty
-    for card in all_cards:
-        decks[card.age].append(card)
-    return decks
+T = TypeVar("T")
+GS = TypeVar("GS", bound=GameState)
+
+
+Dogma = Tuple[DEffect]
+GameStateTransition = Callable[[GS], GS]
+CardProp = Callable[[Card], bool]
+CardsProp = Callable[[Container[Card]], bool]
+CardLoc = Container[Card]
+CardSequence = Sequence[Card]
+ImmutableCardSequence = Tuple[Card]
+CardSet = Container[Card]
+ImmutableCardSet = FrozenSet[Card]
+PlayerId = int
+Age = int
+
+
+# finally, a couple utility functions...
+
+# TODO: What's a better type signature for this?
+def apply_funcs(t : any, fs : Sequence[Callable]) -> any:
+    for f in fs:
+        t = f(t)
+    return t
+
+
+# decorator to assume that a function is partial if not all args
+# are supplied.
+# NOTE: this might break if func uses *args/**kwargs
+def assume_partial(func):
+    num_params = len(signature(func).parameters)
+    def wrapper(*args):
+        if len(args) < num_params:
+            # TODO: is this bad?
+            subfunc = assume_partial(partial(func, *args))
+            return subfunc
+        else:
+            return func(*args)  # throws error if too many args
+    return wrapper

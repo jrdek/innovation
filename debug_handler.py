@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from dataclasses import dataclass
-from typing import List
+from typing import Tuple
 
 # It's nice to have debug flags not be arbitrary strings.
 class DFlags(Enum):
@@ -9,7 +9,7 @@ class DFlags(Enum):
 
 @dataclass
 class DebugHandler:
-    active_flags : List[DFlags]
+    active_flags : Tuple[DFlags]
     
     # invoked as "if state.debug[MY_FLAG]: ..." -- a bit like a dict
     # TODO: is this a code smell? I think it looks elegant, but it's not
@@ -19,3 +19,4 @@ class DebugHandler:
 
 
 # TODO: consider making this a class decorator?
+# it would be nice to have a `dprintf` function on a per-class basis

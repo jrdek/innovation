@@ -1,13 +1,20 @@
 from dogma_ir_typing import *
 from structs import *
 from typing import List, Tuple
-from gameplay import draw_n, meld_from_hand, do_turn_draw, score_card_from_pid_field
 from agent_liaison import AgentLiaison
+from game_manager import GameManager
+from debug_handler import DFlags
+import copy
 
-# TODO: fix GameStateTransition for returning cards...
+
+"""
+TODO:
+- verify that this isn't dependent on the GM being an IGM
+- reorganize the functions' order in the file (they're scattered right now)
+"""
+
 
 class DogmaInterpreter():
-
     # this interpreter evaluates eagerly (lazy impl was very hard)
     # and is extremely mutable
     def __init__(self, liaison: AgentLiaison):
@@ -19,33 +26,36 @@ class DogmaInterpreter():
 
     
     def you(self) -> str:
-        return self.state.players[self.you_id].name
+        return self.game.pid_name(self.you_id)
     
+
     def me(self) -> str:
-        return self.state.players[self.me_id].name
+        return self.game.pid_name(self.me_id)
     
+
     # every CardsExpr must implement .get_zones()
     def get_referentexpr_zones(self) -> List[Tuple[PlayerId, PlayerField]]:
         return self.antecedent_zones
 
+
     def get_zonelesscardsthatexpr_zones(self, node: ZonelessCardsThatExpr) -> List[Tuple[PlayerId, PlayerField]]:
         # TODO
         raise Exception("(unimplemented)")
+
 
     def get_cardsthatexpr_zones(self, node: CardsThatExpr) -> List[Tuple[PlayerId, PlayerField]]:
         if node.strat is None:
             raise Exception("unhandled: self.strat is None")
         # TODO: memoize...
         # This currently duplicates work interp-ing the tree.
-        return [node.strat.src.interp()] * len(node.interp())
+        return tuple([node.strat.src.interp()]) * len(node.interp())
         
-    
 
     def get_loc(self, pid: PlayerId, field: PlayerField) -> CardLoc:
         # TODO: handle for quick lookup on board vs in specific piles!
         # also restructure the PlayerState class to make this more ergonomic.
         # in general, this is an unsatisfying structure...
-        player = self.state.players[pid]
+        player = self.game._state.players[pid]
         if field == PlayerField.HAND:
             return player.hand
         elif field == PlayerField.BOARD:
@@ -58,127 +68,109 @@ class DogmaInterpreter():
             raise Exception(f"Undefined PlayerField: {field}")
 
 
-    def interpret_card(self, state: GameState, me_id: int, card: Card):
+    def interpret_card(self, game: GameManager, me_id: int, card: Card, is_combo: bool):
+        # NOTE: this function returns nothing.
+        # `self.game._state` holds the fully-interpreted state.
         self.applied_changes.clear()  # TODO: maybe scrap this for now...
-        self.state = state
+
+        # strategy: keep and maintain a local copy of the game.
+        # (remember that game "change" logic is done via a manager's methods!)
+        # this doesn't actually need to be maintained outside of dogma actions,
+        # so we just make a new one each call of interpret_card(), then delete
+        # it at the end.
+        self.game = copy.deepcopy(game)
+
+        # funny bug which will only happen with stateful PlayerAgents:
+        # we still need to consume agent choices!
+        self.game.liaison = game.liaison
+
         self.me_id = me_id
         self.you_id = me_id  # TODO
         self.antecedent.clear()
         self.other_player_acted = False
         for dogma_effect in card.dogmata:
             self.this_effect: DEffect = dogma_effect
-            if dogma_effect.is_demand:
+            if dogma_effect.is_demand and not is_combo:
                 self.interpret_demand_effect(dogma_effect)
             else:
-                self.interpret_shared_effect(dogma_effect)
+                self.interpret_shared_effect(dogma_effect, is_combo)
+        
+        final_state = self.game._state
+        del self.game
+        return final_state
 
 
     def interpret_demand_effect(self, deffect: DEffect):
-        ...
+        ...  # TODO
 
     
-    def interpret_shared_effect(self, deffect: DEffect):
-        num_players = len(self.state.players)
+    def interpret_shared_effect(self, deffect: DEffect, is_combo: bool):
+        num_players = len(self.game._state.players)
         self.you_id = (self.me_id + 1) % num_players
-        my_icon_count = self.state.players[self.me_id].count_icon(deffect.key_icon)
-        if self.state.debug[DFlags.GAME_LOG]:
+        my_icon_count = self.game._state.players[self.me_id].count_icon(deffect.key_icon)
+        if self.game.debug[DFlags.GAME_LOG]:
             print(f"\tIt's a shared effect. {self.me()} has {my_icon_count} {deffect.key_icon}.")
         for _ in range(num_players):
-            your_icon_count = self.state.players[self.you_id].count_icon(deffect.key_icon)
-            if your_icon_count >= my_icon_count:
-                if self.state.debug[DFlags.GAME_LOG]:
-                    if self.you_id != self.me_id:
-                        print(f"\t\t{self.you()} has {your_icon_count} {deffect.key_icon}, so it can share.")  # TODO: better pretty-printing here
-                    else:
-                        print(f"\t\tFinally, {self.me()} uses the effect.")
-                for stmt in deffect.effects:
-                    self.interp_stmt(stmt)  # do the dogma for that player
-                    if self.state.winner is not None:
-                        return  # game over, man!
-            else:
-                if self.state.debug[DFlags.GAME_LOG]:
-                    print(f"\t\t{self.you()} has {your_icon_count} {deffect.key_icon}, so it cannot share.")
+            if not is_combo or self.you_id == self.me_id:
+                your_icon_count = self.game._state.players[self.you_id].count_icon(deffect.key_icon)
+                if your_icon_count >= my_icon_count:
+                    if self.game.debug[DFlags.GAME_LOG]:
+                        if self.you_id != self.me_id:
+                            print(f"\t\t{self.you()} has {your_icon_count} {deffect.key_icon}, so it can share.")  # TODO: better pretty-printing here
+                        else:
+                            print(f"\t\tFinally, {self.me()} uses the effect.")
+                    for stmt in deffect.effects:
+                        self.interp_stmt(stmt)  # do the dogma for that player
+                        if self.game.winner is not None:
+                            return  # game over, man!
+                else:
+                    if self.game.debug[DFlags.GAME_LOG]:
+                        print(f"\t\t{self.you()} has {your_icon_count} {deffect.key_icon}, so it cannot share.")
             self.you_id = (self.you_id + 1) % num_players  # go to the next player
         if self.other_player_acted:
-            self.state, card = do_turn_draw(self.state, self.me_id)
-            if self.state.debug[DFlags.GAME_LOG]:
+            if self.game.debug[DFlags.GAME_LOG]:
                 print(f"\tSomeone shared the effect, so {self.me()} takes a turn draw:")
-                print(f"\t\t{card}")
+            self.game.turn_draw(self.me_id)
         return
 
 
     def interp_stmt(self, node: Stmt):
         # split across stmt types. TODO.
-        old_state = self.state
+        old_state = self.game._state
         node.interp(self)
-        if (self.state != old_state) and self.you_id != self.me_id:
+        if (self.game._state != old_state) and self.you_id != self.me_id:
             self.other_player_acted = True
         return
-    
-
-    def draw_one(self, age: Age) -> Card:
-        you = self.you_id
-        new_state, card = draw_n(self.state, you, age)
-        if new_state.winner is not None:
-            # drew an 11 -- game over!
-            return None
-        if self.state.debug[DFlags.GAME_LOG]:
-                old_age = age
-                drawn_str = f"[{old_age}]"
-                if age != old_age:
-                    drawn_str += f" (--> [{age}])"
-                print(f"\t\t\t{self.you()} draws a {drawn_str}:")
-                print(f"\t\t\t\t{card}")
-        self.state = new_state
-        return card
 
     
     def interp_drawstmt(self, node: DrawStmt):
         amount = node.amount.interp(self)
         age = node.age.interp(self)
-        
-        new_antecedent = []
+        you = self.you_id
 
-        for _ in range(amount):
-            card = self.draw_one(age)
-            new_antecedent.append(card)
-
-        self.antecedent = new_antecedent
+        self.antecedent = self.game.draw(you, age, amount)
         self.antecedent_zones = [(self.you_id, PlayerField.HAND)] * amount
 
     
     def interp_scorestmt(self, node: ScoreStmt):
         cards: List[Card] = node.cards.interp(self)
         cards_zones: List[Tuple[PlayerId, PlayerField]] = node.cards.get_zones(self)
+        owners: List[PlayerId] = [zone[0] for zone in cards_zones]
+        src_fields: List[PlayerField] = [zone[1] for zone in cards_zones]
         you: int = self.you_id
         
-        new_antecedent = []
-        
-        for card, card_zone in zip(cards, cards_zones):
-            owner, field = card_zone
-            self.state = score_card_from_pid_field(card, you, owner, field, self.state)
-            if self.state.debug[DFlags.GAME_LOG]:
-                print(f"\t\t\t{self.you()} scores {card}. (Total score: {self.state.players[you].count_score()})")
+        self.game.score(cards, you, owners, src_fields)    
 
-        self.antecedent = new_antecedent
+        self.antecedent = cards
         self.antecedent_zones = [(self.you_id, PlayerField.SCORE_PILE)] * len(cards)
-
 
     
     # TODO: make an update_antecedent macro
     def interp_meldstmt(self, node: MeldStmt):
         cards = node.cards.interp(self)
         you: int = self.you_id
-        new_antecedent = []
-
-        for card in cards:
-            new_state, card = meld_from_hand(self.state, you, card)
-            if self.state.debug[DFlags.GAME_LOG]:
-                print(f"\t\t\t{self.you()} melds {card} from their hand.")
-            self.state = new_state
-            new_antecedent.append(card)
-        
-        self.antecedent = new_antecedent
+        self.game.meld(you, cards, PlayerField.HAND)
+        self.antecedent = cards
         self.antecedent_zones = self.you_id, PlayerField.BOARD
 
     
@@ -202,7 +194,7 @@ class DogmaInterpreter():
         # also TODO: "if it is purple or yellow"...
         feature = node.feature.interp(self)
         if isinstance(feature, Icon):
-            if self.state.debug[DFlags.GAME_LOG]:
+            if self.game.debug[DFlags.GAME_LOG]:
                 print(f"\t\t\tDoes it have {str(feature)}?")
             return lambda card: feature in card.icons
         raise Exception(f"unimplemented feature type {type(feature)}")
@@ -220,7 +212,7 @@ class DogmaInterpreter():
             item_selected = strat.selection_lambda(card_choices)
             all_selected.append(item_selected)
             card_choices.remove(item_selected)
-        return all_selected
+        return tuple(all_selected)
 
 
     def interp_anyfeatures(self) -> CardProp:
@@ -280,24 +272,21 @@ class DogmaInterpreter():
     def interp_nonequantifier(self) -> Callable[[List[T]], bool]:
         return lambda xs: not any(xs)
     
-
-    def reveal(self, cards: List[Card], owner: int):
-        self.liaison.reveal_cards(current_state=self.state, cards=cards, owner=owner)
-    
     
     def interp_drawandstmt(self, node: DrawAndStmt):
-        age = node.age.interp(self)
-        amount = node.amount.interp(self)
-        then = node.then
+        you = self.you_id
+        age: Age = node.age.interp(self)
+        amount: int = node.amount.interp(self)
+        then: DrawAndFriendlyStmtName = node.then
 
         new_antecedent = []
-        
         for _ in range(amount):
-            drawn = self.draw_one(age)
+            # (we have to do these one at a time)
+            drawn = self.game.draw(you, age, 1)[0]
             new_antecedent.append(drawn)
             # TODO: expand stub
             if then == DrawAndFriendlyStmtName.REVEAL:
-                self.reveal(cards=[drawn], owner=self.you_id)
+                self.game.reveal(cards=[drawn], owner=self.you_id)
             else:
                 raise Exception(f"Unimplemented: {then}")
         
@@ -306,10 +295,6 @@ class DogmaInterpreter():
             self.antecedent_zones = [(self.you_id, PlayerField.HAND)]
         elif then == DrawAndFriendlyStmtName.SCORE:
             self.antecedent_zones = [(self.you_id, PlayerField.SCORE_PILE)]
-        
-        # # debug
-        # owner, field = self.antecedent_zones[0]
-        # print(f"\t\t\t(That action put cards into {self.state.players[owner].name}'s {field.name}.)")
 
 
     def interp_stmts(self, node: Stmts):
@@ -319,5 +304,3 @@ class DogmaInterpreter():
 
     def interp_repeatstmt(self):
         self.interp_stmts(self.this_effect.effects)
-
-    

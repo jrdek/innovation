@@ -446,8 +446,7 @@ class DogmaTransformer(Transformer):
     
     def selected_cards_conditioned(self, children) -> ZonelessCardsThatExpr:
         cards_that, condition = children
-        cards_that.condition = condition
-        return cards_that
+        return dc.replace(cards_that, condition=condition)
     
     def selected_cards_from_player_pile(self, children) -> CardsThatExpr:
         player, zoneless_cards_that = children
@@ -496,8 +495,8 @@ class DogmaTransformer(Transformer):
     def any_color(self, _) -> ColorExpr:
         return AnyColor()
     
-    def color_or_color(self, children) -> ListOfColorsExpr:
-        return ListOfColorsExpr(children)
+    def color_or_color(self, children) -> TupleOfColorsExpr:
+        return TupleOfColorsExpr(children)
     
     # NOTE that this is future-friendly
     def one_color_of_cards_on_board(self, children) -> ColorsOnPlayerBoardExpr:
@@ -683,13 +682,7 @@ class DogmaTransformer(Transformer):
         return Stmts(children)
 
 
-
     # STUFF THAT'S ONLY USED BY CARDS, NOT DOGMAS
-
-    # def dogma_effect(self, children) -> DEffect:
-    #     effect_class, icon_expr, logic = children
-    #     is_demand = (effect_class == "Demand")
-    #     return DEffect(is_demand, icon_expr.icon, logic)
 
     def demand_dogma_effect(self, children) -> DEffect:
         icon_expr, logic = children
@@ -700,12 +693,12 @@ class DogmaTransformer(Transformer):
         return DEffect(is_demand=False, key_icon=icon_expr.icon, effects=logic)
 
     def dogma(self, children) -> Dogma:
-        return children
+        return tuple(children)
 
-    def icons(self, children) -> List[Icon]:
+    def icons(self, children) -> Tuple[Icon]:
         # since this is only ever used in defining cards,
         # we'll cut out the middleman (type)
-        return [child.icon for child in children]
+        return tuple(child.icon for child in children)
 
     def card(self, children) -> Card:  # CHECKME: this is returning a Card, *NOT* a CardExpr!
         name_block, number_block, color_block, icons, dogma = children

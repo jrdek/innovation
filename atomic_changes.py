@@ -1,5 +1,6 @@
 import dataclasses as dc
-from typing import List, Set, Union, Deque, Type
+from typing import List, Deque
+from collections import deque
 from structs import *
 
 """
@@ -16,7 +17,8 @@ return the state which results from taking a given action. (i.e., they're all pu
 """
 
 
-# TODO: Check that all of these are deep-copying
+# NOTE: This entire file handles atomic changes for *immutable* GameStates.
+# Accordingly, it should only ever be used by the ImmutableGameManager.
 
 ##### ADD A CARD TO A ZONE #####
 
@@ -40,6 +42,14 @@ def add_card_to_pile(tuck : bool, pi : Pile, card : Card) -> Pile:
 def add_card_to_list(xs : List[Card], card : Card) -> List[Card]:
     return [*xs, card]
 
+@assume_partial
+def add_card_to_tuple(xs: Tuple[Card], card: Card) -> Tuple[Card]:
+    return tuple(*xs, card)
+
+@assume_partial
+def add_card_to_frozenset(xs: FrozenSet[Card], card: Card) -> FrozenSet[Card]:
+    return xs.union(frozenset((card,)))
+
 
 
 
@@ -51,10 +61,14 @@ def container_fail(dest : CardLoc, card : Card):
 def add_card_to_loc(card : Card, dest : CardLoc, tuck=False):
     if type(dest) is deque:
         add_func = add_card_to_deque(tuck)
-    elif type(dest) is Pile:
+    elif isinstance(dest, Pile):
         add_func = add_card_to_pile(tuck)
     elif type(dest) is list:
         add_func = add_card_to_list
+    elif type(dest) is tuple:
+        add_func = add_card_to_tuple
+    elif type(dest) is frozenset:
+        add_func = add_card_to_frozenset
     else:
         add_func = container_fail
 
@@ -70,69 +84,72 @@ def add_card_to_loc(card : Card, dest : CardLoc, tuck=False):
 @assume_partial
 def add_card_to_player_hand(card : Card, pid : int, state : GameState) -> GameState:
     return dc.replace(state,
-        players=[
+        players=tuple(
             p if i != pid else dc.replace(p, 
                 hand=add_card_to_loc(card, dest=p.hand)
             ) for (i,p) in enumerate(state.players)
-        ]
+        )
     )
 
 
 @assume_partial
 def add_card_to_player_score(card : Card, pid : int, state : GameState) -> GameState:
     return dc.replace(state,
-        players=[
+        players=tuple(
             p if i != pid else dc.replace(p, 
                 scored_cards=add_card_to_loc(card, dest=p.scored_cards)
             ) for (i,p) in enumerate(state.players)
-        ]
+        )
     )
 
 
 @assume_partial
 def add_card_to_player_achievements(card : Card, pid : int, state : GameState) -> GameState:
     return dc.replace(state,
-        players=[
+        players=tuple(
             p if i != pid else dc.replace(p, 
                 achieved_cards=add_card_to_loc(card, dest=p.achieved_cards)
             ) for (i,p) in enumerate(state.players)
-        ]
+        )
     )
 
 
 @assume_partial
 def add_card_to_player_board(card : Card, pid : int, tuck : bool, state : GameState) -> GameState:
     return dc.replace(state,
-        players=[
+        players=tuple(
             p if i != pid else dc.replace(p,
-                board={
-                    **p.board,
-                    card.color: add_card_to_loc(card, dest=p.board[card.color], tuck=tuck)
-                }
+                board=ImmutableBoard(
+                    tuple(
+                        pile if color != card.color.value
+                        else add_card_to_loc(card, p.board[card.color])
+                        for color, pile in enumerate(p.board)
+                    )
+                )
             ) 
             for (i, p) in enumerate(state.players)
-        ]
+        )
     )
 
 
 @assume_partial
 def gain_special_achievement(sa : SpecialAchievement, pid : int, state : GameState) -> GameState:
     return dc.replace(state,
-        players = [
+        players = tuple(
             p if i != pid else dc.replace(p, 
                 special_achievements=p.special_achievements.union({sa})
             ) for (i,p) in enumerate(state.players)
-        ]
+        )
     )
 
 
 @assume_partial
 def add_card_to_deck(card : Card, tuck : bool, state : GameState) -> GameState:
     return dc.replace(state,
-        decks=[
+        decks=tuple(
             d if i != card.age else add_card_to_loc(card, dest=d, tuck=tuck)
             for (i, d) in enumerate(state.decks)
-        ]
+        )
     )
 
 
@@ -161,10 +178,10 @@ def remove_card_from_loc(dest : CardLoc, card: Card) -> CardLoc:
 @assume_partial
 def remove_top_card_from_deck(age : int, state : GameState) -> GameState:
     return dc.replace(state,
-        decks=[
+        decks=tuple(
             d if i != age else d[:-1]  # no need for the helper func here
             for (i, d) in enumerate(state.decks)
-        ]
+        )
     )
 
 
@@ -178,11 +195,11 @@ def remove_top_public_achievement(state : GameState) -> GameState:
 @assume_partial
 def remove_card_from_player_hand(card : Card, pid : int, state : GameState) -> GameState:
     return dc.replace(state,
-        players=[
+        players=tuple(
             p if i != pid else dc.replace(p, 
                 hand=remove_card_from_loc(p.hand, card)
             ) for (i,p) in enumerate(state.players)
-        ]
+        )
     )
 
 
@@ -190,24 +207,26 @@ def remove_card_from_player_hand(card : Card, pid : int, state : GameState) -> G
 def remove_card_from_player_board(card : Card, pid : int, state : GameState) -> GameState:
     # TODO: this is slightly cursed
     return dc.replace(state,
-        players=[
+        players=tuple(
             p if i != pid else dc.replace(p, 
-                board=[
-                    pile if pile.color != card.color
-                    else remove_card_from_loc(p.board[card.color], card)
-                    for pile in p.board 
-                ]
+                board=ImmutableBoard(
+                    tuple(
+                        pile if pile.color != card.color
+                        else remove_card_from_loc(p.board[card.color], card)
+                        for pile in p.board
+                    )
+                )
             ) for (i,p) in enumerate(state.players)
-        ]
+        )
     )
 
 
 @assume_partial
 def remove_card_from_player_score(card : Card, pid : int, state : GameState) -> GameState:
     return dc.replace(state,
-        players=[
+        players=tuple(
             p if i != pid else dc.replace(p, 
                 scored_cards=remove_card_from_loc(p.scored_cards, card)
             ) for (i,p) in enumerate(state.players)
-        ]
+        )
     )

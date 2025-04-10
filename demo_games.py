@@ -1,8 +1,13 @@
 from director import Director
+from agent_liaison import AgentLiaison
 import player_agents
-from debug_handler import DFlags
+from debug_handler import DFlags, DebugHandler
+from card_builder import CardStore
+from game_manager import IGManager
+from dogma_interpreter import DogmaInterpreter
 
 # TODO: flexible framework for setting up deterministic games
+
 def demo_game_1():
     """
     Game description:
@@ -44,7 +49,7 @@ def demo_game_1():
     game.run()
 
 
-def demo_game_2():
+def demo_game_2(cards: CardStore):
     """
     Game description:
         Two players.
@@ -119,17 +124,26 @@ def demo_game_2():
     ])
     p2 = player_agents.ScriptedAgent("P2", script_p2)
 
-    players = [p1, p2]
-    expansions = ['test']
+    liaison = AgentLiaison([p1, p2])
     debug_flags = [DFlags.GAME_LOG]
-
-    game = Director(players, expansions, debug_flags)  # TODO: I don't really like this API, actually...
-    game.run()
+    debug = DebugHandler(debug_flags)
+    interpreter = DogmaInterpreter(liaison)
+    game = IGManager(
+        liaison=liaison, 
+        card_store=cards,
+        debug=debug
+    )
+    director = Director(game, liaison, interpreter, debug)
+    
+    director.setup_game()
+    director.conduct_initial_melds()
+    director.run()
 
 
 def __main__():
+    card_store: CardStore = CardStore(["cards/testing.cards"])
     #demo_game_1()
-    demo_game_2()
+    demo_game_2(card_store)
 
 
 if __name__ == "__main__":
