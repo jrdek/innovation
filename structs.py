@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import Dict, TypeVar, Optional, Sequence, Tuple, Container, FrozenSet
+from typing import TypeAlias, Dict, TypeVar, Optional, Sequence, Tuple, Container, FrozenSet, Set, Union
 from dataclasses import dataclass
 from collections.abc import Callable
 from functools import partial
@@ -151,7 +151,7 @@ class SpecialAchievement:
 
 
 class Pile(ABC, Sequence):
-    cards : Container[Card]
+    cards : Container[CardId]
     splay : Splay
     
     def __contains__(self, item) -> bool:
@@ -166,10 +166,11 @@ class Pile(ABC, Sequence):
     def bottom(self) -> Card:
         return self.cards[0]
 
-    def count_icon(self, targ_icon : Icon) -> int:
-        # FIXME this is broken probably
+    def count_icon(self, card_store: "CardStore", targ_icon : Icon) -> int:
+        # TODO: test thoroughly
         total : int = 0
-        for card_no, card in enumerate(self.cards):
+        for card_no, card_id in enumerate(self.cards):
+            card = card_store.get(card_id)
             if card_no == len(self.cards)-1:
                 total += card.icons.count(targ_icon)
             else:
@@ -209,16 +210,16 @@ class PlayerState(ABC):
         return len(self.achieved_cards)
     
 
-    def count_score(self) -> int:
-        return sum(card.age for card in self.scored_cards)
+    def count_score(self, card_store: "CardStore") -> int:
+        return sum(card_store.get(card_id).age for card_id in self.scored_cards)
     
 
-    def get_score_profile(self) -> Counter[int]:
-        return Counter([card.age for card in self.scored_cards])
+    def get_score_profile(self, card_store: "CardStore") -> Counter[int]:
+        return Counter([card_store.get(card_id).age for card_id in self.scored_cards])
     
 
-    def count_icon(self, targ_icon : Icon) -> int:
-        return sum(pile.count_icon(targ_icon) for pile in self.board.piles)
+    def count_icon(self, card_store: "CardStore", targ_icon : Icon) -> int:
+        return sum(pile.count_icon(card_store, targ_icon) for pile in self.board.piles)
     
 
     def get_top_cards(self) -> Tuple[Card]:
@@ -260,8 +261,8 @@ class GameState(ABC):
     players: Sequence[PlayerState]
     active_player: PlayerId = 0
     is_second_action: bool = False
-    decks: Sequence[CardSequence]
-    achievements: CardSequence
+    decks: Sequence[CardIdSequence]
+    achievements: CardIdSequence
     special_achievements: Tuple[SpecialAchievement]
     winner: Optional[PlayerId]
 
@@ -272,7 +273,7 @@ class ImmutableGameState(GameState):
     players: Tuple[ImmutablePlayerState] = ()
     active_player: PlayerId = 0
     is_second_action: bool = False
-    decks: Tuple[ImmutableCardSequence] = ()
+    decks: Tuple[ImmutableCardIdSequence] = ()
     achievements: Tuple[Card] = ()
     special_achievements: Tuple[SpecialAchievement] = ()
     winner : Optional[PlayerId] = None
@@ -289,18 +290,22 @@ class EvaluatedZonedSelectionStrategy:
 T = TypeVar("T")
 GS = TypeVar("GS", bound=GameState)
 
+SetLike: TypeAlias[T] = Set[T] | FrozenSet[T]  # frozensets aren't sets!
+
+PlayerId = int
+CardId = int
+Age = int
 
 Dogma = Tuple[DEffect]
 GameStateTransition = Callable[[GS], GS]
 CardProp = Callable[[Card], bool]
 CardsProp = Callable[[Container[Card]], bool]
-CardLoc = Container[Card]
-CardSequence = Sequence[Card]
-ImmutableCardSequence = Tuple[Card]
-CardSet = Container[Card]
-ImmutableCardSet = FrozenSet[Card]
-PlayerId = int
-Age = int
+
+CardIdLoc = Container[CardId]
+CardIdSequence = Sequence[CardId]
+ImmutableCardIdSequence = Tuple[CardId]
+CardIdSet = SetLike[CardId]
+ImmutableCardIdSet = FrozenSet[CardId]
 
 
 # finally, a couple utility functions...

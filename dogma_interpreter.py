@@ -51,7 +51,7 @@ class DogmaInterpreter():
         return tuple([node.strat.src.interp()]) * len(node.interp())
         
 
-    def get_loc(self, pid: PlayerId, field: PlayerField) -> CardLoc:
+    def get_loc(self, pid: PlayerId, field: PlayerField) -> CardIdLoc:
         # TODO: handle for quick lookup on board vs in specific piles!
         # also restructure the PlayerState class to make this more ergonomic.
         # in general, this is an unsatisfying structure...
@@ -107,12 +107,12 @@ class DogmaInterpreter():
     def interpret_shared_effect(self, deffect: DEffect, is_combo: bool):
         num_players = len(self.game._state.players)
         self.you_id = (self.me_id + 1) % num_players
-        my_icon_count = self.game._state.players[self.me_id].count_icon(deffect.key_icon)
+        my_icon_count = self.game._state.players[self.me_id].count_icon(self.game.card_store, deffect.key_icon)
         if self.game.debug[DFlags.GAME_LOG]:
             print(f"\tIt's a shared effect. {self.me()} has {my_icon_count} {deffect.key_icon}.")
         for _ in range(num_players):
             if not is_combo or self.you_id == self.me_id:
-                your_icon_count = self.game._state.players[self.you_id].count_icon(deffect.key_icon)
+                your_icon_count = self.game._state.players[self.you_id].count_icon(self.game.card_store, deffect.key_icon)
                 if your_icon_count >= my_icon_count:
                     if self.game.debug[DFlags.GAME_LOG]:
                         if self.you_id != self.me_id:
@@ -182,7 +182,8 @@ class DogmaInterpreter():
 
 
     def interp_cardsarelikeexpr(self, node: CardsAreLikeExpr) -> bool:
-        cards: List[Card] = node.cards.interp(self)
+        card_ids: List[CardId] = node.cards.interp(self)
+        cards: List[Card] = [self.game.card_store.get(cid) for cid in card_ids]
         like: CardProp = node.like.interp(self)
         quantifier: Callable[[List[T]], bool] = node.quantifier.interp(self)
         print(f"\t\t\t\t[{', '.join(str(card) + ': ' + str(like(card)) for card in cards)}]")
@@ -200,13 +201,13 @@ class DogmaInterpreter():
         raise Exception(f"unimplemented feature type {type(feature)}")
 
 
-    def interp_cardsthatexpr(self, node: CardsThatExpr) -> List[Card]:
+    def interp_cardsthatexpr(self, node: CardsThatExpr) -> List[CardId]:
         that : CardProp = node.that.interp(self)
         strat : EvaluatedZonedSelectionStrategy = node.strat.interp(self)
         condition : bool = node.condition.interp(self)  # TODO: what to do with condition?
         
         loc = self.get_loc(strat.pid, strat.field)
-        card_choices = [card for card in loc if that(card)]
+        card_choices = [card_id for card_id in loc if that(self.game.card_store.get(card_id))]
         all_selected = []
         for _ in range(strat.num):
             item_selected = strat.selection_lambda(card_choices)
@@ -286,7 +287,7 @@ class DogmaInterpreter():
             new_antecedent.append(drawn)
             # TODO: expand stub
             if then == DrawAndFriendlyStmtName.REVEAL:
-                self.game.reveal(cards=[drawn], owner=self.you_id)
+                self.game.reveal(card_ids=[drawn], owner=self.you_id)
             else:
                 raise Exception(f"Unimplemented: {then}")
         

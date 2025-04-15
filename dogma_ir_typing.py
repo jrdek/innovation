@@ -442,7 +442,7 @@ class CardsThatExpr(CardsExpr):
     strat: Optional[ZonedSelectionStrategy] = None # TODO: what to do if this is None?
     condition: BoolExpr = NoCondition()
 
-    def interp(self, di) -> Tuple[Card]:
+    def interp(self, di) -> Tuple[CardId]:
         return di.interp_cardsthatexpr(self)
 
     def get_zones(self, di) -> Tuple[Tuple[PlayerId, PlayerField]]:

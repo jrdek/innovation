@@ -5,10 +5,11 @@ from debug_handler import DFlags, DebugHandler
 from card_builder import CardStore
 from game_manager import IGManager
 from dogma_interpreter import DogmaInterpreter
+from typing import List
 
 # TODO: flexible framework for setting up deterministic games
 
-def demo_game_1():
+def demo_game_1(card_store: CardStore):
     """
     Game description:
         Two players.
@@ -28,28 +29,55 @@ def demo_game_1():
         Player 2 doesn't have enough ideas to share.
         There are no [2]s (or anything higher), so Player 1 tries to draw an 11, ending the game and winning.
     """
+    cards = [
+        "Sailing",
+        "Archery",
+        "Tools",
+        "Oars",
+        "CodeOfLaws",
+        "Mysticism",
+        "Masonry",
+        "Pottery",
+        "Agriculture",
+        "Clothing",
+        "CityStates",
+        "Domestication",
+        "TheWheel",
+        "Writing",
+        "Metalworking"
+    ]
+
     script_p1 = '\n'.join([
         "Writing",
         "draw",
         "dogma Writing"
     ])
-    p1 = player_agents.ScriptedAgent("P1", script_p1)
+    p1 = player_agents.ScriptedAgent("P1", script_p1, card_store)
 
     script_p2 = '\n'.join([
         "TheWheel",  # initial meld
         "dogma TheWheel"
     ])
-    p2 = player_agents.ScriptedAgent("P2", script_p2)
+    p2 = player_agents.ScriptedAgent("P2", script_p2, card_store)
 
-    players = [p1, p2]
-    expansions = ['test']
+    liaison = AgentLiaison([p1, p2])
     debug_flags = [DFlags.GAME_LOG]
+    debug = DebugHandler(debug_flags)
+    interpreter = DogmaInterpreter(liaison)
+    game = IGManager(
+        liaison=liaison, 
+        debug=debug,
+        card_store=card_store,
+        card_names=cards
+    )
+    director = Director(game, liaison, interpreter, debug)
+    
+    director.setup_game()
+    director.conduct_initial_melds()
+    director.run()
 
-    game = Director(players, expansions, debug_flags)  # TODO: I don't really like this API, actually...
-    game.run()
 
-
-def demo_game_2(cards: CardStore):
+def demo_game_2(card_store: CardStore):
     """
     Game description:
         Two players.
@@ -107,22 +135,38 @@ def demo_game_2(cards: CardStore):
             Finally, Player 1 does the effect:
                 P1 tries to draw a 2. This results in drawing an 11.
         Player 1 wins!
-
-
-
     """
+
+    cards = [
+        "Sailing",
+        "Archery",
+        "Tools",
+        "Oars",
+        "CodeOfLaws",
+        "Mysticism",
+        "Masonry",
+        "Pottery",
+        "Agriculture",
+        "Clothing",
+        "CityStates",
+        "Domestication",
+        "TheWheel",
+        "Writing",
+        "Metalworking"
+    ]
+
     script_p1 = '\n'.join([
         "Metalworking",
         "dogma Metalworking",
         "dogma Writing"
     ])
-    p1 = player_agents.ScriptedAgent("P1", script_p1)
+    p1 = player_agents.ScriptedAgent("P1", script_p1, card_store)
 
     script_p2 = '\n'.join([
         "Domestication",
         "dogma Domestication"
     ])
-    p2 = player_agents.ScriptedAgent("P2", script_p2)
+    p2 = player_agents.ScriptedAgent("P2", script_p2, card_store)
 
     liaison = AgentLiaison([p1, p2])
     debug_flags = [DFlags.GAME_LOG]
@@ -130,8 +174,9 @@ def demo_game_2(cards: CardStore):
     interpreter = DogmaInterpreter(liaison)
     game = IGManager(
         liaison=liaison, 
-        card_store=cards,
-        debug=debug
+        debug=debug,
+        card_store=card_store,
+        card_names=cards
     )
     director = Director(game, liaison, interpreter, debug)
     
@@ -142,8 +187,11 @@ def demo_game_2(cards: CardStore):
 
 def __main__():
     card_store: CardStore = CardStore(["cards/testing.cards"])
-    #demo_game_1()
-    demo_game_2(card_store)
+
+    
+    demo_game_1(card_store)
+    input()
+    demo_game_2(card_store)  # TODO: make a DemoGame class
 
 
 if __name__ == "__main__":

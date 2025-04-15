@@ -1,13 +1,11 @@
-import game_engine as ge
-
 # TODO: separate "doing" into an "executor" object...
 # then don't reveal atomic_changes to the director.
-from atomic_changes import *
 from debug_handler import DebugHandler, DFlags
 from dogma_interpreter import DogmaInterpreter
 from structs import *
 from agent_liaison import AgentLiaison
 from game_manager import GameManager
+from typing import List, Tuple
 
 
 class Director():
@@ -32,8 +30,7 @@ class Director():
         while self.game.winner is None:
             self.update_action_counter()
             # the active player chooses an action
-            action = self.request_choice_of_action(self.game.active_player)
-            # the     
+            name, action = self.request_choice_of_action(self.game.active_player)
             self.do_turn_action(action)
             
         if self.debug[DFlags.GAME_LOG]:
@@ -45,7 +42,7 @@ class Director():
         # by the time this is called, the action is already validated!
         if action == TurnAction.DRAW:
             if self.debug[DFlags.GAME_LOG]:
-                print(f"ACTION: {self.pid_name(pid)} draws.")
+                print(f"ACTION: {self.game.pid_name(pid)} draws.")
             self.game.turn_draw(pid)
 
         elif action == TurnAction.MELD:
@@ -55,10 +52,10 @@ class Director():
             self.game.meld(pid=pid, card=chosen_card, zone=PlayerField.HAND)
 
         elif action == TurnAction.DOGMA:
-            chosen_card = self.request_choice_from_top_cards(pid)
+            card_name, card_id = self.request_choice_from_top_cards(pid)
             if self.debug[DFlags.GAME_LOG]:
-                print(f"ACTION: {self.game.pid_name(pid)} uses the dogma of {chosen_card}.")
-            self.game.dogma(me=pid, card=chosen_card, interpreter=self.interpreter)
+                print(f"ACTION: {self.game.pid_name(pid)} uses the dogma of {card_name}.")
+            self.game.dogma(me=pid, card_id=card_id, interpreter=self.interpreter)
 
         elif action == TurnAction.ACHIEVE:
             self.achieve(pid=pid)
@@ -71,16 +68,16 @@ class Director():
         self.game.update_action_counter()
     
 
-    def request_choice_of_action(self, pid) -> TurnAction:
+    def request_choice_of_action(self, pid) -> Tuple[str, TurnAction]:
         valid_turn_actions = self.game.get_valid_turn_actions(pid)
         return self.liaison.request_choice_of_one(self.game, pid, valid_turn_actions)
 
 
-    def request_choice_from_hand(self, pid) -> Card:
+    def request_choice_from_hand(self, pid) -> Tuple[str, CardId]:
         return self.liaison.request_choice_of_one(self.game, pid, self.game.get_player_hand(pid))
     
 
-    def request_choice_from_top_cards(self, pid) -> Card:
+    def request_choice_from_top_cards(self, pid) -> Tuple[str, CardId]:
         return self.liaison.request_choice_of_one(self.game, pid, self.game.get_player_top_cards(pid))
 
 
@@ -100,22 +97,25 @@ class Director():
         for pid in range(self.num_players):
             self.game.draw(pid, age=1, amount=2)
         print("\nDealt initial cards.")
-        for pid in range(self.num_players):
-            print(f"{self.game.pid_name(pid)}'s hand: [{', '.join(str(card) for card in self.game.get_player_hand(pid))}]")
-        print()
+        if self.debug[DFlags.GAME_LOG]:
+            for pid in range(self.num_players):
+                name, hand = self.game.player_name_and_hand(pid)
+                print(f"{name}'s hand: [{', '.join(hand)}]")
+            print()
 
 
     def _meld_initial_cards(self):
-        card_choices = []
+        card_choices: List[Tuple[str, CardId]] = []
         for pid in range(self.num_players):
             card_choices.append(self.request_choice_from_hand(pid))
-        print('; '.join(f"{self.game.pid_name(pid)} melds {str(card)}" for pid, card in enumerate(card_choices)) + ".")
+        if self.debug[DFlags.GAME_LOG]:
+            print('; '.join(f"{name} melds {self.game.card_store.get(card_id)}" for name, card_id in card_choices) + ".")
         # the first player is whoever melded the alphabetically-first card
-        first_player = card_choices.index(min(card_choices, key=lambda card: card.name))
-        self.game._do(lambda state: dc.replace(state, active_player=first_player))
+        first_player = card_choices.index(min(card_choices, key=lambda name_card: self.game.card_store.get(name_card[1]).name))
+        self.game.set_active_player(first_player)
         print(f"{self.game.active_player_name} goes first.")
-        for pid, card in enumerate(card_choices):
-            self.game.meld(pid, [card], PlayerField.HAND)
+        for pid, (name, card_id) in enumerate(card_choices):
+            self.game.meld(pid, [card_id], PlayerField.HAND)
 
 
     def _shuffle_decks(self):

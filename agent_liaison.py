@@ -1,7 +1,7 @@
 
 from player_agents import PlayerAgent
-from typing import List
-from structs import T, GameState, Card
+from typing import List, Tuple
+from structs import T, GameState, CardId
 
 
 class AgentLiaison:
@@ -9,7 +9,7 @@ class AgentLiaison:
         self.agents = agents
 
 
-    def request_choice_of_many(self, current_state: GameState, pid: int, bank: List[T], how_many: int) -> List[T]:
+    def request_choice_of_many(self, current_state: GameState, pid: int, bank: List[T], how_many: int) -> Tuple[str, List[T]]:
         if len(bank) == 0:
             return []
         chosen = self.agents[pid].choose(
@@ -19,17 +19,17 @@ class AgentLiaison:
         )
         assert len(chosen) == how_many
         assert all(item in bank for item in chosen)
-        return chosen
+        return self.agents[pid].name, chosen
     
 
     def request_choice_of_one(self, current_state: GameState, pid: int, bank: List[T]) -> T:
-        chosen = self.request_choice_of_many(current_state, pid, bank, 1)
+        name, chosen = self.request_choice_of_many(current_state, pid, bank, 1)
         if len(chosen) == 0:
             return None
-        return chosen[0]
+        return name, chosen[0]
     
 
-    def reveal_cards(self, current_state: GameState, cards: List[Card], owner: int):
+    def reveal_cards(self, current_state: GameState, card_ids: List[CardId], owner: int):
         for i, agent in enumerate(self.agents):
             if i != owner:
-                agent.notify(state=current_state, cards=cards, owner=owner)
+                agent.notify(state=current_state, card_ids=card_ids, owner=owner)
